@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000';
+export const API_BASE = 'http://localhost:8000';
 const TOKEN_KEY = 'qa_dashboard_token';
 const USERNAME_KEY = 'qa_dashboard_username';
 

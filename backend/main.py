@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from database import get_connection, init_db, seed_if_empty
@@ -14,6 +17,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+EVIDENCE_DIR = Path(__file__).parent / "evidence"
+EVIDENCE_DIR.mkdir(exist_ok=True)
+app.mount("/evidence", StaticFiles(directory=EVIDENCE_DIR), name="evidence")
 
 
 @app.on_event("startup")
@@ -78,3 +85,34 @@ def list_tasks(username: str = Depends(get_current_user)):
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
+
+
+@app.get("/api/modules/{module_name}/tests")
+def list_module_tests(module_name: str, username: str = Depends(get_current_user)):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT uuid, name, status, error_message, run_date
+        FROM test_results
+        WHERE module = ?
+        ORDER BY name
+    """, (module_name,))
+    tests = [dict(r) for r in cur.fetchall()]
+
+    for test in tests:
+        cur.execute("""
+            SELECT attachment_name, file_path, type
+            FROM attachments
+            WHERE test_uuid = ?
+        """, (test["uuid"],))
+        test["attachments"] = [
+            {
+                "name": a["attachment_name"],
+                "type": a["type"],
+                "url": f"/evidence/{Path(a['file_path']).name}",
+            }
+            for a in cur.fetchall()
+        ]
+
+    conn.close()
+    return tests

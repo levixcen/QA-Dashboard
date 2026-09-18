@@ -1,0 +1,43 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* GSM Palette Tokens */
+  --pacific-blue: #04BBE4;
+  --electric-indigo: #03018E;
+  --oxford-blue: #0D2744;
+  --obsidian-blue: #02013C;
+  --electric-lime: #E7F024;
+  --cyber-pink: #F900CA;
+  --cloud-dancer: #F0EEE9;
+  --jet-black: #000000;
+  --miracle-white: #FFFFFF;
+
+  /* Refined Light Theme Tokens */
+  --body-text: #0D2744;
+  --body-text-muted: #3B536F;
+  --border-focus: #04BBE4;
+  --light-blue-bg: #F2F8FC;
+  --light-blue-border: #BCE3F5;
+  --card-shadow-light: 0 4px 14px rgba(4, 187, 228, 0.06);
+  --card-shadow-hover: 0 8px 24px rgba(4, 187, 228, 0.12);
+
+  /* Shared Sidebar Blue Gradient for Borders */
+  --sidebar-border-gradient: linear-gradient(135deg, #04BBE4 0%, #0c4a8a 60%, #031a4a 100%);
+}
+
+body {
+  font-family: Arial, system-ui, -apple-system, sans-serif;
+  background: var(--cloud-dancer);
+  color: var(--body-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+h1, h2, h3, .brand, .rate, .module-pct {
+  font-family: Arial, system-ui, sans-serif;
+}

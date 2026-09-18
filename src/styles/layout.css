@@ -1,0 +1,153 @@
+.app {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  padding: 28px 32px 48px;
+  max-width: 1240px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Page Header */
+.page-header {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.page-header .brand {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--pacific-blue);
+  margin-bottom: 4px;
+}
+
+.page-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--oxford-blue);
+}
+
+.last-synced {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--body-text-muted);
+  font-family: Arial, system-ui, sans-serif;
+}
+
+/* Layouts */
+.content-grid {
+  display: grid;
+  grid-template-columns: 290px 1fr;
+  gap: 24px;
+}
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 24px;
+  max-width: 1000px;
+}
+
+.left-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Overall 100% Circle Container with SVG Border Ring Animation */
+.overall {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--oxford-blue);
+  padding: 20px;
+  background: transparent;
+  transition: transform 0.2s ease;
+}
+
+.overall:hover {
+  transform: translateY(-3px);
+}
+
+.overall-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  z-index: 1;
+}
+
+.overall-bg-circle {
+  fill: none;
+  stroke: var(--light-blue-border);
+  stroke-width: 3;
+}
+
+.overall-progress-circle {
+  fill: none;
+  stroke: url(#sidebarGradient);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 628;
+  stroke-dashoffset: 628;
+  animation: fillCircle 1.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.overall-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.overall .rate {
+  font-size: 46px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 2px;
+  letter-spacing: -1px;
+  color: var(--oxford-blue);
+}
+
+.overall .label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--body-text-muted);
+}
+
+.overall .meta {
+  font-size: 11px;
+  color: var(--body-text-muted);
+  border-top: 1px solid var(--light-blue-border);
+  padding-top: 6px;
+}
+
+@keyframes fillCircle {
+  from {
+    stroke-dashoffset: 628;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}

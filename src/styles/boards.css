@@ -1,0 +1,110 @@
+/* Task Board */
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.board-column {
+  background: var(--light-blue-bg);
+  border: 1px solid var(--light-blue-border);
+  border-radius: 20px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  box-shadow: var(--card-shadow-light);
+  transition: transform 0.2s ease;
+}
+
+.board-column:hover {
+  transform: translateY(-3px);
+}
+
+.board-column-header {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--oxford-blue);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 4px 6px;
+}
+
+.board-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pacific-blue);
+  background: rgba(4, 187, 228, 0.12);
+  border: 1px solid rgba(4, 187, 228, 0.25);
+  border-radius: 17px;
+  padding: 2px 9px;
+}
+
+.task-card {
+  background: var(--miracle-white);
+  border: 1px solid var(--light-blue-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--card-shadow-light);
+  transition: transform 0.2s ease;
+}
+
+.task-card:hover {
+  transform: translateY(-3px);
+}
+
+.task-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--oxford-blue);
+  line-height: 1.4;
+}
+
+.task-tags,
+.task-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.label-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--body-text-muted);
+  background: #E8F8FC;
+  border-radius: 8px;
+  padding: 3px 8px;
+}
+
+.due-date {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--body-text-muted);
+}
+
+.priority {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 14px;
+}
+
+.priority-high { background: #FDE8E8; color: #9B1C1C; }
+.priority-medium { background: #FEF3C7; color: #92400E; }
+.priority-low { background: #DEF7EC; color: #03543F; }
+
+.assignee-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pacific-blue);
+  background: rgba(4, 187, 228, 0.12);
+  border-radius: 14px;
+  padding: 2px 8px;
+}

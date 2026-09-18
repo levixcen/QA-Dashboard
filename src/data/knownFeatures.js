@@ -1,0 +1,15 @@
+export const knownFeatures = [
+  'Register',
+  'Login',
+  'My Unit',
+  'Support',
+  'Property',
+  'Hotline',
+  'Community',
+  'Guest',
+  'My Bills',
+  'Profile',
+  'Residents',
+  'Smart Gate',
+  'Forgot Password',
+];

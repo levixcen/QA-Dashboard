@@ -5,6 +5,10 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime, timezone
 
+DEFAULT_JSON_OUT = SCRIPT_DIR / "backend" / "public" / "dashboard_data.json"
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_EVIDENCE_DIR = SCRIPT_DIR / "backend" / "evidence"
+
 
 MODULE_MAP = {
     "test_login": "Login",
@@ -275,7 +279,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parse Allure results into the QA dashboard database.")
     parser.add_argument("--input", required=True, help="Path to Mario's allure-results folder")
     parser.add_argument("--db", default="qa_dashboard.db", help="Output SQLite file")
-    parser.add_argument("--evidence", default="evidence", help="Output folder for copied screenshots")
+    parser.add_argument("--evidence", default=str(DEFAULT_EVIDENCE_DIR), help="Output folder for copied screenshots")
     parser.add_argument("--json-out", default="public/dashboard_data.json", help="Where to write the JSON the dashboard reads")
     args = parser.parse_args()
 

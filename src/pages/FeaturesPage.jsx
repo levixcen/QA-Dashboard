@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import ModuleTestsModal from '../components/ModuleTestsModal';
 
 function ModulesPage({ modules }) {
   const [filter, setFilter] = useState('All');
+  const [openModule, setOpenModule] = useState(null);
 
   const filtered = modules.filter(m => {
     if (filter === 'All') return true;
@@ -60,7 +62,12 @@ function ModulesPage({ modules }) {
 
       <div className="modules">
         {filtered.map(m => (
-          <div key={m.id} className="module-card">
+          <div
+            key={m.id}
+            className="module-card"
+            onClick={() => setOpenModule(m.name)}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="module-header">
               <div className="module-name">
                 <span className={`icon ${m.color}`}>
@@ -91,10 +98,22 @@ function ModulesPage({ modules }) {
               </div>
             )}
 
-            <button className="archive">Archive</button>
+            <button
+              className="archive"
+              onClick={e => e.stopPropagation()}
+            >
+              Archive
+            </button>
           </div>
         ))}
       </div>
+
+      {openModule && (
+        <ModuleTestsModal
+          moduleName={openModule}
+          onClose={() => setOpenModule(null)}
+        />
+      )}
     </>
   );
 }
