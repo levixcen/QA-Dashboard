@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import MonthPicker from './MonthPicker';
 
 function Sidebar({ page, setPage }) {
   const [expanded, setExpanded] = useState(() => {
@@ -15,7 +16,6 @@ function Sidebar({ page, setPage }) {
       try {
         localStorage.setItem('qa_sidebar_expanded', String(next));
       } catch {
-        // ignore storage errors, expansion still works for this session
       }
       return next;
     });
@@ -23,6 +23,14 @@ function Sidebar({ page, setPage }) {
 
   return (
     <div className={`sidebar ${expanded ? 'expanded' : ''}`}>
+      <div className="sidebar-logo">
+        <img
+          className="sidebar-logo-mark-img"
+          src="/logos/logomark-white.png"
+          alt="Sedayu One"
+        />
+      </div>
+
       <button
         className="sidebar-toggle"
         onClick={toggleExpanded}
@@ -36,6 +44,8 @@ function Sidebar({ page, setPage }) {
       </button>
 
       <div className="sidebar-nav">
+        <MonthPicker expanded={expanded} />
+
         <div
           className={`sidebar-icon ${page === 'dashboard' ? 'active' : ''}`}
           onClick={() => setPage('dashboard')}

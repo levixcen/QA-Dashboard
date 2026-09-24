@@ -1,0 +1,158 @@
+.month-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+}
+
+.month-picker-popover {
+  position: fixed;
+  width: 240px;
+  padding: 14px;
+  background: #fff;
+  color: #02013C;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(2, 1, 60, 0.25);
+  z-index: 9999;
+}
+
+.month-picker-year {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.month-picker-year button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.month-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.month-picker-cell {
+  padding: 8px 0;
+  border: 1px solid #d5e6f0;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.month-picker-cell:hover {
+  border-color: #04BBE4;
+}
+
+.month-picker-cell.active {
+  background: #02013C;
+  color: #fff;
+  border-color: #02013C;
+}
+
+.month-picker-cell.empty {
+  color: #a9bccb;
+  border-style: dashed;
+}
+
+.month-picker-cell.empty.active {
+  color: #fff;
+}
+
+.month-picker-notice {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #fff4e5;
+  color: #8a5a00;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.month-picker-all {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  color: #02013C;
+  text-decoration: underline;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sidebar-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 8px 12px;
+}
+
+.sidebar-logo-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.sidebar-logo-text {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 0;
+  opacity: 0;
+  transition: max-width 0.2s ease, opacity 0.15s ease;
+}
+
+.sidebar-logo-text.visible {
+  max-width: 140px;
+  opacity: 1;
+}
+
+.yearly-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.yearly-chart-nav button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.yearly-chart-svg {
+  width: 100%;
+  height: auto;
+}
+
+.yearly-chart-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.yearly-chart-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+}

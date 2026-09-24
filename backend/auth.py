@@ -3,7 +3,10 @@ import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone
 
-SECRET_KEY = os.environ.get("QA_DASHBOARD_SECRET", "change-this-secret-before-real-use")
+SECRET_KEY = os.environ.get("QA_DASHBOARD_SECRET")
+if not SECRET_KEY or len(SECRET_KEY) < 32:
+    raise RuntimeError("QA_DASHBOARD_SECRET must be set to at least 32 characters")
+
 TOKEN_TTL_HOURS = 24 * 7
 
 
@@ -12,7 +15,10 @@ def hash_password(plain_password):
 
 
 def verify_password(plain_password, password_hash):
-    return bcrypt.checkpw(plain_password.encode("utf-8"), password_hash.encode("utf-8"))
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), password_hash.encode("utf-8"))
+    except ValueError:
+        return False
 
 
 def create_token(username):
@@ -25,7 +31,12 @@ def create_token(username):
 
 def decode_token(token):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=["HS256"],
+            options={"require": ["exp", "sub"]},
+        )
         return payload["sub"]
     except jwt.PyJWTError:
         return None

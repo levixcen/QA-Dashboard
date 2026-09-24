@@ -33,6 +33,7 @@
 
 .page-header h1 {
   font-size: 28px;
+  font-family: var(--font-display);
   font-weight: 700;
   color: var(--oxford-blue);
 }
@@ -122,6 +123,7 @@
 
 .overall .rate {
   font-size: 46px;
+  font-family: var(--font-display);
   font-weight: 700;
   line-height: 1;
   margin-bottom: 2px;
@@ -150,4 +152,17 @@
   to {
     stroke-dashoffset: 0;
   }
+}
+
+.profile-page {
+  margin: -28px -32px -48px;
+  padding: 28px 32px 48px;
+  min-height: 100vh;
+
+  background-image:
+    linear-gradient(to left, rgba(2, 1, 60, 0.88) 0%, rgba(2, 1, 60, 0.15) 100%),
+    url('/s1-login-bg.jpg');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
 }

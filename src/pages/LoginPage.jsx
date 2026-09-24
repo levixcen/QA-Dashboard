@@ -58,8 +58,14 @@ function LoginPage({ onLogin }) {
           {submitting ? 'Signing in.' : 'Sign in'}
         </button>
       </form>
+
+      <img
+        className="login-page-logo"
+        src="/logos/main-logo-white.png"
+        alt=""
+      />
     </div>
   );
 }
 
-export default LoginPage;    
+export default LoginPage;

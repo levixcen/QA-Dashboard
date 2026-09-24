@@ -1,8 +1,9 @@
 import { knownFeatures } from '../data/knownFeatures';
 
-export function withNotStarted(modules) {
+export function withNotStarted(modules, extraFeatureNames = []) {
   const present = new Set(modules.map(m => m.name));
-  const missing = knownFeatures
+  const allKnown = [...new Set([...knownFeatures, ...extraFeatureNames])];
+  const missing = allKnown
     .filter(name => !present.has(name))
     .map((name, index) => ({
       id: `not-started-${index}`,

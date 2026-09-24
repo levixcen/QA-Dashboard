@@ -27,4 +27,6 @@ dist-ssr
 qa_dashboard.db
 evidence/
 allure-results/
-public/dashboard_data.json
+public/dashboard_data.json.venv/
+backend/.env
+backend/.env

@@ -1,24 +1,30 @@
 function ProfilePage({ username, onLogout }) {
+  function handleLogout() {
+    try {
+      localStorage.removeItem('qa_token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('qa_username');
+    } catch {
+    }
+    if (typeof onLogout === 'function') onLogout();
+  }
+
   return (
-    <>
-      <div className="page-header">
-        <div>
-          <div className="brand">SEDAYU ONE</div>
-          <h1>Profile</h1>
-        </div>
-      </div>
-
-      <div className="module-card" style={{ maxWidth: 360 }}>
-        <div className="status-row">
-          <span>Signed in as</span>
-          <span style={{ color: '#1a2a3a', fontWeight: 700 }}>{username}</span>
-        </div>
-
-        <button className="btn btn-dark" onClick={onLogout} style={{ marginTop: 8 }}>
-          Log out
+    <div className="login-screen profile-logout-screen">
+      <div className="logout-content">
+        <p className="logout-label">Signed in as</p>
+        <h1 className="logout-username">{username || 'User'}</h1>
+        <button className="btn btn-primary" type="button" onClick={handleLogout}>
+          Sign out
         </button>
       </div>
-    </>
+
+      <img
+        className="login-logo"
+        src="/logos/main-logo-white.png"
+        alt="Sedayu One"
+      />
+    </div>
   );
 }
 

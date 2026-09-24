@@ -1,17 +1,51 @@
 import { useState, useEffect } from 'react';
-import { authFetch, API_BASE } from '../utils/auth';
+import { authFetch } from '../utils/auth';
+import { usePeriod } from '../context/PeriodContext';
 
 const IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|webp)$/i;
 
+function EvidenceImage({ url, name }) {
+  const [src, setSrc] = useState(null);
+
+  useEffect(() => {
+    let objectUrl;
+    let cancelled = false;
+    authFetch(url)
+      .then(res => (res.ok ? res.blob() : Promise.reject()))
+      .then(blob => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url]);
+
+  if (!src) return <span className="evidence-thumb">Loading</span>;
+  return (
+    <a className="evidence-item" href={src} target="_blank" rel="noreferrer">
+      <img className="evidence-thumb" src={src} alt={name} />
+    </a>
+  );
+}
+
 function ModuleTestsModal({ moduleName, onClose }) {
+  const { period } = usePeriod();
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedUuid, setExpandedUuid] = useState(null);
 
   useEffect(() => {
-    authFetch(`/api/modules/${encodeURIComponent(moduleName)}/tests`)
-      .then(res => res.json())
+    const query = period ? `?month=${period}` : '';
+    authFetch(`/api/modules/${encodeURIComponent(moduleName)}/tests${query}`)
+      .then(res => {
+        if (!res.ok) throw new Error('bad response');
+        return res.json();
+      })
       .then(data => {
         setTests(data);
         setLoading(false);
@@ -20,7 +54,7 @@ function ModuleTestsModal({ moduleName, onClose }) {
         setError('Could not load test results.');
         setLoading(false);
       });
-  }, [moduleName]);
+  }, [moduleName, period]);
 
   function toggleExpanded(uuid) {
     setExpandedUuid(current => (current === uuid ? null : uuid));
@@ -80,9 +114,7 @@ function ModuleTestsModal({ moduleName, onClose }) {
                 {isExpanded && images.length > 0 && (
                   <div className="test-row-evidence">
                     {images.map((a, i) => (
-                      <a key={i} className="evidence-item" href={`${API_BASE}${a.url}`} target="_blank" rel="noreferrer">
-                        <img className="evidence-thumb" src={`${API_BASE}${a.url}`} alt={a.name} />
-                      </a>
+                      <EvidenceImage key={i} url={a.url} name={a.name} />
                     ))}
                   </div>
                 )}

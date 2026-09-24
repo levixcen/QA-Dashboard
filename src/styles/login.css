@@ -1,27 +1,26 @@
-/* Login Page */
+
 .login-screen {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  background: var(--obsidian-blue);
-}
-
-.login-left {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 40px;
-  background: var(--obsidian-blue);
+  justify-content: flex-end;
+  background-image:
+    linear-gradient(to left, rgba(2, 1, 60, 0.88) 0%, rgba(2, 1, 60, 0.15) 100%),
+    url('/s1-login-bg.jpg');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  padding: 40px 8vw;
 }
 
 .login-card {
-  background: var(--oxford-blue);
-  border: 1px solid #04BBE4;
-  border-radius: 22px;
-  padding: 40px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
   width: 100%;
-  max-width: 400px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  max-width: 380px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -36,6 +35,7 @@
 
 .login-card h1 {
   font-size: 24px;
+  font-family: var(--font-display);
   color: var(--miracle-white);
   margin-bottom: 8px;
 }
@@ -54,15 +54,6 @@
 
 .login-card .control-group input::placeholder {
   color: var(--body-text-muted);
-}
-
-.login-right {
-  background-image: url('/src/assets/sedayuone.jpg');
-  background-size: cover;
-  background-position: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .login-error {

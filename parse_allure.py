@@ -5,9 +5,12 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime, timezone
 
-DEFAULT_JSON_OUT = SCRIPT_DIR / "backend" / "public" / "dashboard_data.json"
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_EVIDENCE_DIR = SCRIPT_DIR / "backend" / "evidence"
+DEFAULT_JSON_OUT = SCRIPT_DIR / "public" / "dashboard_data.json"
+
+SEVERITY_LEVELS = ["critical", "high", "medium", "low", "normal"]
+ALLOWED_EVIDENCE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 
 MODULE_MAP = {
@@ -52,6 +55,25 @@ def get_param(parameters, name, default=""):
         if p.get("name") == name:
             return str(p.get("value", default)).strip("'\"")
     return default
+
+
+def normalize_severity(raw: str) -> str:
+    """Allure's built-in severity label is normally one of blocker/critical/
+    normal/minor/trivial. We fold that down to the four levels the dashboard
+    surfaces (critical/high/medium/low), defaulting anything unset or
+    unrecognized to 'normal' so it doesn't inflate the badge counts."""
+    key = (raw or "").strip().lower()
+    mapping = {
+        "blocker": "critical",
+        "critical": "critical",
+        "high": "high",
+        "normal": "medium",
+        "medium": "medium",
+        "minor": "low",
+        "low": "low",
+        "trivial": "low",
+    }
+    return mapping.get(key, "normal")
 
 
 def auto_module_name(suite: str, package: str) -> str:
@@ -104,7 +126,8 @@ def init_db(db_path: Path):
             stop_ts INTEGER,
             duration_ms INTEGER,
             run_date TEXT,
-            error_message TEXT
+            error_message TEXT,
+            severity TEXT
         )
     """)
     conn.execute("""
@@ -117,6 +140,16 @@ def init_db(db_path: Path):
             FOREIGN KEY (test_uuid) REFERENCES test_results (uuid)
         )
     """)
+
+    # Migration path for databases created before the severity column
+    # existed. CREATE TABLE IF NOT EXISTS above is a no-op on an existing
+    # table, so a plain ALTER TABLE is needed to backfill it. Guarded
+    # because SQLite errors if the column is already there.
+    try:
+        conn.execute("ALTER TABLE test_results ADD COLUMN severity TEXT")
+    except sqlite3.OperationalError:
+        pass
+
     conn.commit()
     return conn
 
@@ -153,6 +186,14 @@ def compute_module_summary(conn: sqlite3.Connection):
         """, (module,))
         details = [{"name": name, "count": 1, "error": err or ""} for name, err in cur.fetchall()]
 
+        cur.execute("""
+            SELECT severity FROM test_results
+            WHERE module = ? AND status IN ('failed', 'broken')
+        """, (module,))
+        severity_counts = {level: 0 for level in SEVERITY_LEVELS}
+        for (raw_sev,) in cur.fetchall():
+            severity_counts[normalize_severity(raw_sev)] += 1
+
         summary.append({
             "id": i,
             "name": module,
@@ -161,15 +202,53 @@ def compute_module_summary(conn: sqlite3.Connection):
             "failing": failing,
             "color": color,
             "details": details,
+            "total": total,
+            "passed": passed,
+            "severity": severity_counts,
         })
     return summary
 
 
+def compute_overall_summary(conn: sqlite3.Connection):
+    """Aggregate pass/fail counts and defect severity across every module,
+    computed from raw counts rather than averaged percentages so the
+    dashboard's headline numbers stay accurate regardless of how test
+    volume varies module to module."""
+    cur = conn.cursor()
+    cur.execute("SELECT status, COUNT(*) FROM test_results GROUP BY status")
+    counts = dict(cur.fetchall())
+    total = sum(counts.values())
+    passed = counts.get("passed", 0)
+    failed = sum(v for k, v in counts.items() if k in ("failed", "broken"))
+    pct = round((passed / total) * 100) if total else 0
+
+    cur.execute("""
+        SELECT severity FROM test_results
+        WHERE status IN ('failed', 'broken')
+    """)
+    severity_counts = {level: 0 for level in SEVERITY_LEVELS}
+    for (raw_sev,) in cur.fetchall():
+        severity_counts[normalize_severity(raw_sev)] += 1
+
+    return {
+        "total": total,
+        "passed": passed,
+        "failed": failed,
+        "pct": pct,
+        "severity": severity_counts,
+    }
+
+
 def export_dashboard_json(conn: sqlite3.Connection, out_path: Path):
     summary = compute_module_summary(conn)
+    overall = compute_overall_summary(conn)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump({"modules": summary, "generated_at": datetime.now(timezone.utc).isoformat()}, f, indent=2)
+        json.dump({
+            "modules": summary,
+            "overall": overall,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }, f, indent=2)
     print(f"Dashboard data written to {out_path}")
 
 
@@ -196,6 +275,7 @@ def parse(input_dir: Path, db_path: Path, evidence_dir: Path, json_out: Path = N
         story = get_label(labels, "story")
         feature = get_label(labels, "feature")
         tc_id = get_param(result.get("parameters"), "tc_id")
+        severity = get_label(labels, "severity")
 
         key = (suite or package or "").strip().lower()
         module = resolve_module(suite, package)
@@ -213,8 +293,8 @@ def parse(input_dir: Path, db_path: Path, evidence_dir: Path, json_out: Path = N
         cur.execute("""
             INSERT OR REPLACE INTO test_results
             (uuid, name, full_name, status, module, suite, epic, story,
-             feature, tc_id, start_ts, stop_ts, duration_ms, run_date, error_message)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             feature, tc_id, start_ts, stop_ts, duration_ms, run_date, error_message, severity)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             uuid,
             result.get("name", ""),
@@ -231,17 +311,21 @@ def parse(input_dir: Path, db_path: Path, evidence_dir: Path, json_out: Path = N
             stop_ts - start_ts if start_ts and stop_ts else 0,
             run_date,
             extract_error_message(result),
+            severity,
         ))
 
         cur.execute("DELETE FROM attachments WHERE test_uuid = ?", (uuid,))
 
+        safe_uuid = Path(uuid).name
         for att in collect_attachments(result):
-            source_name = att.get("source", "")
+            source_name = Path(att.get("source", "")).name
+            if Path(source_name).suffix.lower() not in ALLOWED_EVIDENCE_EXT:
+                continue
             source_path = result["_source_path"].parent / source_name
             if not source_path.exists():
                 missing_screenshots += 1
                 continue
-            dest_name = f"{uuid}_{source_name}"
+            dest_name = f"{safe_uuid}_{source_name}"
             dest_path = evidence_dir / dest_name
             shutil.copyfile(source_path, dest_path)
             cur.execute("""
@@ -271,16 +355,16 @@ def parse(input_dir: Path, db_path: Path, evidence_dir: Path, json_out: Path = N
     for module, status, count in cur.fetchall():
         print(f"  {module:20s} {status:10s} {count}")
 
-    export_dashboard_json(conn, Path(json_out) if json_out else Path("public/dashboard_data.json"))
+    export_dashboard_json(conn, Path(json_out) if json_out else DEFAULT_JSON_OUT)
     conn.close()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parse Allure results into the QA dashboard database.")
     parser.add_argument("--input", required=True, help="Path to Mario's allure-results folder")
-    parser.add_argument("--db", default="qa_dashboard.db", help="Output SQLite file")
+    parser.add_argument("--db", default=str(SCRIPT_DIR / "qa_dashboard.db"), help="Output SQLite file")
     parser.add_argument("--evidence", default=str(DEFAULT_EVIDENCE_DIR), help="Output folder for copied screenshots")
-    parser.add_argument("--json-out", default="public/dashboard_data.json", help="Where to write the JSON the dashboard reads")
+    parser.add_argument("--json-out", default=str(DEFAULT_JSON_OUT), help="Where to write the JSON the dashboard reads")
     args = parser.parse_args()
 
     parse(Path(args.input), Path(args.db), Path(args.evidence), Path(args.json_out))

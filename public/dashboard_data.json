@@ -1,0 +1,54 @@
+{
+  "modules": [
+    {
+      "id": 1,
+      "name": "Explore",
+      "pct": 100,
+      "status": "Healthy",
+      "failing": 0,
+      "color": "green",
+      "details": [],
+      "total": 3,
+      "passed": 3,
+      "severity": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "normal": 0
+      }
+    },
+    {
+      "id": 2,
+      "name": "Login",
+      "pct": 100,
+      "status": "Healthy",
+      "failing": 0,
+      "color": "green",
+      "details": [],
+      "total": 6,
+      "passed": 6,
+      "severity": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "normal": 0
+      }
+    }
+  ],
+  "overall": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "pct": 100,
+    "severity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "normal": 0
+    }
+  },
+  "generated_at": "2026-09-18T09:46:03.412092+00:00"
+}

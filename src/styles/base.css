@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Geologica:wght@400;600;700&display=swap');
+
 * {
   margin: 0;
   padding: 0;
@@ -15,6 +17,9 @@
   --cloud-dancer: #F0EEE9;
   --jet-black: #000000;
   --miracle-white: #FFFFFF;
+
+    /* Typography Tokens */
+  --font-display: 'Geologica', Arial, sans-serif;
 
   /* Refined Light Theme Tokens */
   --body-text: #0D2744;
