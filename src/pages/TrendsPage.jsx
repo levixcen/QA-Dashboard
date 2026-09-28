@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
 import { authFetch } from '../utils/auth';
 import YearlyChart from '../components/YearlyChart';
+import ProjectPaceChart from '../components/ProjectPaceChart';
+import { usePeriod } from '../context/PeriodContext';
 
 function TrendsPage({ username }) {
-  const [year, setYear] = useState(new Date().getFullYear());
+  const { period, setPeriod } = usePeriod();
+  const [year, setYear] = useState(() =>
+    period ? Number(period.slice(0, 4)) : new Date().getFullYear()
+  );
   const [months, setMonths] = useState([]);
   const [penetration, setPenetration] = useState(null);
+  const [velocity, setVelocity] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -20,6 +26,13 @@ function TrendsPage({ username }) {
       .then(data => setPenetration(data))
       .catch(() => setPenetration(null));
   }, [year]);
+
+  useEffect(() => {
+    authFetch('/api/reports/project-velocity')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => setVelocity(data?.projects || []))
+      .catch(() => setVelocity([]));
+  }, []);
 
   const totals = months.reduce(
     (acc, m) => {
@@ -38,10 +51,6 @@ function TrendsPage({ username }) {
         <div>
           <div className="brand welcome-brand">Welcome, {username || 'User'}</div>
           <h1>Trends</h1>
-        </div>
-        <div className="yearly-chart-nav">
-          <button type="button" onClick={() => setYear(y => y - 1)} aria-label="Previous year">‹</button>
-          <button type="button" onClick={() => setYear(y => y + 1)} aria-label="Next year">›</button>
         </div>
       </div>
 
@@ -66,13 +75,23 @@ function TrendsPage({ username }) {
           <p className="insight-note">
             {penetration
               ? `${penetration.total_open} open / ${penetration.executed_tcs} executed TCs`
-              : 'Add defects API to enable'}
+              : 'No penetration data yet'}
           </p>
         </div>
       </div>
 
       <div className="insight-card" style={{ marginTop: 8 }}>
-        <YearlyChart />
+        <YearlyChart
+          year={year}
+          months={months}
+          period={period}
+          onYearChange={setYear}
+          onSelectMonth={setPeriod}
+        />
+      </div>
+
+      <div className="insight-card" style={{ marginTop: 16 }}>
+        <ProjectPaceChart projects={velocity} />
       </div>
 
       <div className="insight-card" style={{ marginTop: 16 }}>
