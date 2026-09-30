@@ -26,17 +26,22 @@ function DashboardPage({ modules, loaded, generatedAt, overallStats, onUpdateMod
   const [hoverLabel, setHoverLabel] = useState(null);
 
   const totalFailing = modules.reduce((sum, m) => sum + m.failing, 0);
+  const totalOpenDefects = overallStats?.open_defects
+    ?? modules.reduce((sum, m) => sum + (m.open_defects || 0), 0);
+  const totalUncovered = overallStats?.uncovered_failures
+    ?? modules.reduce((sum, m) => sum + (m.uncovered_failures || 0), 0);
   const notStarted = modules.filter(m => m.color === 'gray').length;
   const active = modules.filter(m => m.color !== 'gray');
   const fallbackOverall = active.length
     ? Math.round(active.reduce((s, m) => s + m.pct, 0) / active.length)
     : 0;
 
-  const hasData = overallStats ? overallStats.total > 0 : active.length > 0;
+  const hasData = overallStats
+    ? (overallStats.total > 0 || totalOpenDefects > 0)
+    : (active.length > 0 || totalOpenDefects > 0);
   const periodLabel = period ? formatPeriod(period) : 'all time';
 
-  // overallStats comes from real pass/fail counts across every test, which
-  // is more accurate than averaging each module's percentage.
+  // Ring stays execution pass rate — defects surface as separate health signals.
   const ringPct = overallStats ? overallStats.pct : fallbackOverall;
 
   const automatedCount = modules.length - notStarted;
@@ -46,15 +51,30 @@ function DashboardPage({ modules, loaded, generatedAt, overallStats, onUpdateMod
   const totalActual = modules.reduce((sum, m) => sum + (m.total || 0), 0);
   const planVsActualPct = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : null;
 
+  // Needs Attention: red/orange modules, sorted by open defects then failing tests
   const needsAttention = modules
     .filter(m => m.color === 'red' || m.color === 'orange')
-    .sort((a, b) => b.failing - a.failing)
-    .slice(0, 3);
+    .sort((a, b) => {
+      const d = (b.open_defects || 0) - (a.open_defects || 0);
+      if (d !== 0) return d;
+      return b.failing - a.failing;
+    })
+    .slice(0, 5);
 
   const topFailingTests = modules
     .flatMap(m => (m.details || []).map(d => ({ module: m.name, name: d.name, count: d.count })))
     .sort((a, b) => b.count - a.count)
     .slice(0, 4);
+
+  // Prefer open *defects* severity for the severity card; fall back to failing-test severity
+  const defectSev = overallStats?.defects_by_severity || null;
+  const failureSev = overallStats?.severity || null;
+  const severity = defectSev && (defectSev.critical + defectSev.high + defectSev.medium + defectSev.low) > 0
+    ? defectSev
+    : failureSev;
+  const severityHasData = severity
+    && (severity.critical + severity.high + severity.medium + severity.low) > 0;
+  const severityIsDefects = severity === defectSev;
 
   let status = 'GREEN';
   let statusClass = 'green';
@@ -63,27 +83,29 @@ function DashboardPage({ modules, loaded, generatedAt, overallStats, onUpdateMod
   if (!hasData) {
     status = 'NO DATA';
     statusClass = '';
-    summaryText = `No test results recorded for ${periodLabel}.`;
-  } else if (totalFailing >= 5 || ringPct < 80) {
+    summaryText = `No test results or open defects recorded for ${periodLabel}.`;
+  } else if (totalOpenDefects > 0 || totalFailing >= 5 || ringPct < 80) {
     status = 'RED';
     statusClass = 'red';
-    summaryText = `Overall status is RED. ${totalFailing} test cases are currently failing across modules. Immediate attention is required on high-impact failures.`;
+    const parts = [];
+    if (totalOpenDefects > 0) parts.push(`${totalOpenDefects} open defect(s)`);
+    if (totalFailing > 0) parts.push(`${totalFailing} failing test case(s)`);
+    if (totalUncovered > 0) parts.push(`${totalUncovered} failure(s) without a defect`);
+    summaryText = `Overall status is RED. ${parts.join(', ')}. Immediate attention is required.`;
   } else if (totalFailing >= 1 || ringPct < 95) {
     status = 'AMBER';
     statusClass = 'amber';
     summaryText = `Overall status is AMBER. ${totalFailing} test case(s) still failing. Most other modules are healthy.`;
   }
 
-  // --- Nested ring geometry (viewBox 0 0 280 280, ~30% larger than prior 220) ---
+  // --- Nested ring geometry ---
   const CX = 140;
   const CY = 140;
-  // Outer thin ring = overall score
   const OUTER_R = 124;
   const OUTER_STROKE = 10;
   const OUTER_CIRC = 2 * Math.PI * OUTER_R;
   const outerProgress = (ringPct / 100) * OUTER_CIRC;
 
-  // Inner donut = pass / fail / not-run
   const INNER_R = 92;
   const INNER_STROKE = 22;
   const INNER_CIRC = 2 * Math.PI * INNER_R;
@@ -92,8 +114,6 @@ function DashboardPage({ modules, loaded, generatedAt, overallStats, onUpdateMod
   const pfFailed = overallStats?.failed || 0;
   const pfActual = overallStats?.total || 0;
 
-  // Donut total is the larger of planned and executed, so it matches the
-  // Features page total. Falls back to executed when nothing is planned.
   const pfTotal = Math.max(totalPlanned, pfActual);
   const pfNotRun = Math.max(pfTotal - pfPassed - pfFailed, 0);
 
@@ -101,17 +121,15 @@ function DashboardPage({ modules, loaded, generatedAt, overallStats, onUpdateMod
   const failedLen = pfTotal > 0 ? (pfFailed / pfTotal) * INNER_CIRC : 0;
   const notRunLen = pfTotal > 0 ? (pfNotRun / pfTotal) * INNER_CIRC : 0;
 
-  const severity = overallStats?.severity || null;
-  const severityHasData = severity
-    && (severity.critical + severity.high + severity.medium + severity.low) > 0;
-
-  // Center label: show hover detail when a segment is hovered, otherwise overall %
+  const passPct = overallStats?.pass_pct;
   const centerPrimary = hoverLabel
     ? hoverLabel.count
     : `${ringPct}%`;
   const centerSecondary = hoverLabel
     ? hoverLabel.label
-    : 'Overall Score';
+    : 'Health Score';
+
+  const penetration = overallStats?.penetration_pct;
 
   return (
     <>
@@ -132,13 +150,12 @@ function DashboardPage({ modules, loaded, generatedAt, overallStats, onUpdateMod
         <div className="placeholder" style={{ marginBottom: 20 }}>
           <p>
             {period
-              ? `No test runs recorded for ${periodLabel}. Pick another month or show all time.`
-              : "No data yet. Run parse_allure.py on Mario's latest results."}
+              ? `No test runs or open defects for ${periodLabel}. Pick another month or show all time.`
+              : "No data yet. Run parse_allure.py on Mario's latest results, or raise defects from the Features page."}
           </p>
         </div>
       )}
 
-      {/* Centered merged ring + summary text below */}
       <div className="dashboard-ring-block">
         <div className="merged-ring">
           <svg className="merged-ring-svg" viewBox="0 0 280 280" role="img" aria-label="Overall score and pass/fail breakdown">
@@ -150,25 +167,17 @@ function DashboardPage({ modules, loaded, generatedAt, overallStats, onUpdateMod
               </linearGradient>
             </defs>
 
-            {/* Outer thin ring — overall score */}
-            <circle
-              className="merged-outer-bg"
-              cx={CX} cy={CY} r={OUTER_R}
-            />
+            <circle className="merged-outer-bg" cx={CX} cy={CY} r={OUTER_R} />
             <circle
               className="merged-outer-progress"
               cx={CX} cy={CY} r={OUTER_R}
               strokeDasharray={`${outerProgress} ${OUTER_CIRC}`}
               strokeDashoffset="0"
-              onMouseEnter={() => setHoverLabel({ label: 'Overall Score', count: `${ringPct}%` })}
+              onMouseEnter={() => setHoverLabel({ label: 'Health Score', count: `${ringPct}%` })}
               onMouseLeave={() => setHoverLabel(null)}
             />
 
-            {/* Inner donut — pass / fail / not-run */}
-            <circle
-              className="merged-inner-bg"
-              cx={CX} cy={CY} r={INNER_R}
-            />
+            <circle className="merged-inner-bg" cx={CX} cy={CY} r={INNER_R} />
             {pfTotal > 0 && (
               <>
                 <circle
@@ -204,9 +213,23 @@ function DashboardPage({ modules, loaded, generatedAt, overallStats, onUpdateMod
           <div className="merged-ring-content">
             <div className="merged-rate">{centerPrimary}</div>
             <div className="merged-label">{centerSecondary}</div>
-            {!hoverLabel && pfTotal > 0 && (
+            {!hoverLabel && (pfTotal > 0 || totalOpenDefects > 0) && (
               <div className="merged-meta">
-                {pfPassed}P · {pfFailed}F{pfNotRun > 0 ? ` · ${pfNotRun}N` : ''} of {pfTotal}
+                {pfTotal > 0 && (
+                  <div className="merged-meta-line">
+                    {pfPassed} passed · {pfFailed} failed
+                    {pfNotRun > 0 ? ` · ${pfNotRun} not run` : ''} · {pfTotal} total
+                  </div>
+                )}
+                {(passPct != null || totalOpenDefects > 0) && (
+                  <div className="merged-meta-line">
+                    {passPct != null ? `Pass ${passPct}%` : ''}
+                    {passPct != null && totalOpenDefects > 0 ? ' · ' : ''}
+                    {totalOpenDefects > 0
+                      ? `${totalOpenDefects} open defect${totalOpenDefects === 1 ? '' : 's'}`
+                      : ''}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -221,20 +244,26 @@ function DashboardPage({ modules, loaded, generatedAt, overallStats, onUpdateMod
 
       <div className="dashboard-secondary-row">
         <div className="severity-card">
-          <h3>Defect Severity (Open Failures)</h3>
+          <h3>{severityIsDefects ? 'Open Defect Severity' : 'Failure Severity'}</h3>
           {severityHasData ? (
             <div className="severity-badges">
               {Object.entries(SEVERITY_LABELS).map(([key, label]) => (
                 <div key={key} className={`severity-badge severity-${key}`}>
-                  <span className="severity-count">{severity[key]}</span>
+                  <span className="severity-count">{severity[key] || 0}</span>
                   <span className="severity-label">{label}</span>
                 </div>
               ))}
             </div>
           ) : (
             <p className="insight-note">
-              No open failures, or severity isn't tagged on your tests yet.
-              Add an Allure severity label to see this breakdown.
+              No open defects yet. Raise one from a failing test on Features, or add one on the Defects page.
+            </p>
+          )}
+          {totalOpenDefects > 0 && (
+            <p className="insight-note" style={{ marginTop: 10 }}>
+              {totalOpenDefects} open defect{totalOpenDefects === 1 ? '' : 's'}
+              {penetration != null ? ` · ${penetration}% penetration` : ''}
+              {totalUncovered > 0 ? ` · ${totalUncovered} uncovered failure(s)` : ''}
             </p>
           )}
         </div>
@@ -267,7 +296,11 @@ function DashboardPage({ modules, loaded, generatedAt, overallStats, onUpdateMod
               <div className="insight-row">
                 <span className={`icon ${m.color}`}>{m.color === 'red' ? '\u00d7' : '!'}</span>
                 <span className="insight-row-name">{m.name}</span>
-                <span className="insight-row-meta">{m.failing} failing</span>
+                <span className="insight-row-meta">
+                  {(m.open_defects || 0) > 0
+                    ? `${m.open_defects} defect${m.open_defects === 1 ? '' : 's'}`
+                    : `${m.failing} failing`}
+                </span>
                 <button
                   type="button"
                   className="module-meta-edit-trigger"
@@ -277,6 +310,11 @@ function DashboardPage({ modules, loaded, generatedAt, overallStats, onUpdateMod
                   &#9998;
                 </button>
               </div>
+              {(m.open_defects || 0) > 0 && m.failing > 0 && (
+                <div className="module-meta-display">
+                  {m.failing} failing · {m.uncovered_failures || 0} uncovered
+                </div>
+              )}
               {m.meta?.pic && (
                 <div className="module-meta-display">Owner: {m.meta.pic}</div>
               )}

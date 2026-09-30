@@ -1,0 +1,322 @@
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-hover: rgba(255, 255, 255, 0.86);
+  --glass-border: rgba(255, 255, 255, 0.9);
+  --glass-blur: 18px;
+  --glass-shadow: 0 8px 28px rgba(13, 39, 68, 0.1);
+
+  --text: #0d2744;
+  --text-muted: #3b536f;
+  --heading: #0d2744;
+}
+
+html, body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background-color: #eef7fc;
+  background-image:
+    /* Cyber Pink — richer, top-left */
+    radial-gradient(
+      ellipse 80% 65% at 0% 0%,
+      rgba(249, 0, 202, 0.28) 0%,
+      rgba(249, 0, 202, 0.1) 38%,
+      transparent 62%
+    ),
+    /* Neon Yellow — smaller corner only */
+    radial-gradient(
+      ellipse 32% 28% at 100% 100%,
+      rgba(231, 240, 36, 0.28) 0%,
+      rgba(231, 240, 36, 0.1) 45%,
+      transparent 62%
+    ),
+    /* Pacific cyan — top-right + upper wash */
+    radial-gradient(
+      ellipse 70% 55% at 100% 5%,
+      rgba(4, 187, 228, 0.3) 0%,
+      rgba(4, 187, 228, 0.1) 42%,
+      transparent 65%
+    ),
+    /* soft cyan center bloom */
+    radial-gradient(
+      ellipse 90% 70% at 45% 35%,
+      rgba(4, 187, 228, 0.12) 0%,
+      transparent 58%
+    ),
+    /* secondary pink mid-left */
+    radial-gradient(
+      ellipse 45% 40% at 8% 55%,
+      rgba(249, 0, 202, 0.1) 0%,
+      transparent 55%
+    ),
+    linear-gradient(
+      165deg,
+      #f7fbfe 0%,
+      #eaf5fb 42%,
+      #e0f1f9 100%
+    );
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+#root,
+.app,
+.app-shell,
+.layout,
+.main-layout {
+  min-height: 100vh;
+  background: transparent;
+}
+
+/* Frosted glass — lighter than the page */
+.insight-card,
+.summary-card,
+.severity-card,
+.module-card,
+.controls,
+.defects-table-wrap,
+.defect-folder,
+.task-column,
+.board-column,
+.placeholder,
+.modal-content,
+.task-card {
+  background-color: var(--glass-bg) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  color: var(--text) !important;
+}
+
+.insight-card:hover,
+.summary-card:hover,
+.severity-card:hover,
+.module-card:hover,
+.controls:hover {
+  background-color: var(--glass-bg-hover) !important;
+}
+
+.insight-card h3,
+.summary-card h3,
+.severity-card h3,
+.yearly-chart-header h3,
+.defects-section-title,
+.task-column-header,
+.board-column-header,
+.control-group label,
+.project-checklist-header,
+.defects-table th {
+  color: var(--heading) !important;
+}
+
+.insight-big,
+.insight-row-name,
+.module-name,
+.module-pct,
+.merged-rate,
+.overall .rate,
+.task-title,
+.task-card-title,
+.defect-folder-title,
+.defect-id,
+.defect-code,
+.defects-table td,
+.test-row-name,
+.modal-header h2 {
+  color: var(--text) !important;
+}
+
+.insight-note,
+.last-synced,
+.merged-label,
+.merged-meta,
+.overall .label,
+.overall .meta,
+.status-row,
+.details,
+.module-meta-display,
+.defects-section-count,
+.defect-folder-count,
+.task-due,
+.modal-status {
+  color: var(--text-muted) !important;
+}
+
+.page-header .brand,
+.page-header .brand.welcome-brand {
+  color: #04bbe4 !important;
+}
+
+.page-header h1 {
+  color: var(--text) !important;
+}
+
+.last-synced {
+  color: var(--text-muted) !important;
+}
+
+.project-open-btn {
+  background: rgba(4, 187, 228, 0.12) !important;
+  border: 1px solid rgba(4, 187, 228, 0.3) !important;
+  color: #0d2744 !important;
+}
+
+.project-open-btn:hover {
+  background: rgba(4, 187, 228, 0.2) !important;
+}
+
+.module-meta-edit-trigger {
+  color: var(--text-muted) !important;
+  background: transparent !important;
+}
+
+.module-meta-edit-trigger:hover {
+  color: #0d2744 !important;
+  background: rgba(4, 187, 228, 0.12) !important;
+}
+
+.raise-defect-trigger {
+  color: #0d2744 !important;
+  border-color: #04bbe4 !important;
+  background: transparent !important;
+}
+
+.raise-defect-trigger:hover {
+  background: rgba(4, 187, 228, 0.12) !important;
+}
+
+.project-checklist-assignees {
+  color: #0d2744 !important;
+  background: rgba(4, 187, 228, 0.12) !important;
+}
+
+.filter-btn {
+  background: rgba(255, 255, 255, 0.75) !important;
+  color: var(--text-muted) !important;
+  border-color: rgba(13, 39, 68, 0.12) !important;
+}
+
+.filter-btn:hover {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #0d2744 !important;
+  border-color: #04bbe4 !important;
+}
+
+.filter-btn.active {
+  background: #0d2744 !important;
+  color: #ffffff !important;
+  border-color: #0d2744 !important;
+}
+
+.btn-primary {
+  background: #04bbe4 !important;
+  color: #ffffff !important;
+}
+
+.btn-primary:hover {
+  background: #03a3c7 !important;
+}
+
+.btn-dark {
+  background: #0d2744 !important;
+  color: #ffffff !important;
+}
+
+.controls select,
+.control-group select,
+.control-group input,
+.page-header select,
+.defects-filters select,
+.module-meta-field input,
+.module-meta-field select,
+.module-meta-field textarea,
+.project-checklist-add input,
+.project-checklist-add-row input {
+  background: rgba(255, 255, 255, 0.88) !important;
+  color: #0d2744 !important;
+  border-color: rgba(13, 39, 68, 0.14) !important;
+}
+
+.controls select:focus,
+.control-group input:focus {
+  border-color: #04bbe4 !important;
+  box-shadow: 0 0 0 3px rgba(4, 187, 228, 0.22) !important;
+}
+
+.progress {
+  background: rgba(13, 39, 68, 0.08) !important;
+}
+
+.merged-outer-bg,
+.merged-inner-bg,
+.overall-bg-circle {
+  stroke: rgba(13, 39, 68, 0.12) !important;
+}
+
+.yearly-chart-nav button {
+  background: rgba(255, 255, 255, 0.88) !important;
+  color: #0d2744 !important;
+  border-color: rgba(13, 39, 68, 0.12) !important;
+}
+
+.yearly-chart-legend {
+  color: var(--text-muted) !important;
+}
+
+.module-meta-form {
+  background: rgba(255, 255, 255, 0.55) !important;
+  border-color: rgba(13, 39, 68, 0.1) !important;
+}
+
+.project-checklist-label,
+.project-checklist-text {
+  color: #0d2744 !important;
+}
+
+.project-checklist-text.done {
+  color: var(--text-muted) !important;
+}
+
+.project-checklist-label input[type="checkbox"] {
+  accent-color: #04bbe4 !important;
+}
+
+.modal-overlay {
+  background: rgba(13, 39, 68, 0.35) !important;
+}
+
+.modal-header {
+  border-bottom-color: rgba(13, 39, 68, 0.1) !important;
+}
+
+.defects-table th,
+.defects-table td {
+  border-bottom-color: rgba(13, 39, 68, 0.08) !important;
+}
+
+.month-picker-popover {
+  background: #ffffff !important;
+  color: #02013c !important;
+  backdrop-filter: none;
+}
+
+.sidebar {
+  backdrop-filter: none;
+}
+
+.evidence-thumb,
+.module-card img,
+.insight-card img,
+.modal-content img,
+.sidebar-logo-mark-img,
+img.evidence-thumb {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  max-width: 100%;
+}

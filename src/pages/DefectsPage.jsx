@@ -1,185 +1,539 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { authFetch } from '../utils/auth';
 
-const SEVERITIES = ['critical', 'high', 'medium', 'low'];
-const STATUSES = ['open', 'in_progress', 'retest', 'reopened', 'closed'];
+const SEVERITY_OPTIONS = ['critical', 'high', 'medium', 'low'];
+const STATUS_OPTIONS = ['open', 'in_progress', 'retest', 'reopened', 'closed'];
+const SEVERITY_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
+const MAX_FOLDER_NAME_LENGTH = 60;
 
-const STATUS_LABEL = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  retest: 'Retest',
-  reopened: 'Re-Opened',
-  closed: 'Closed',
-};
-
-const SEVERITY_LABEL = {
-  critical: 'Critical',
-  high: 'High',
-  medium: 'Medium',
-  low: 'Low',
-};
-
-function daysBetween(isoDate) {
-  if (!isoDate) return null;
-  const start = new Date(isoDate + 'T00:00:00');
-  if (Number.isNaN(start.getTime())) return null;
-  const now = new Date();
-  const diff = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-  return diff < 0 ? 0 : diff;
+function titleCase(str) {
+  return (str || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+function severityRank(sev) {
+  return SEVERITY_RANK[sev] || 0;
 }
 
-const emptyForm = {
-  description: '',
-  severity: 'high',
-  status: 'open',
-  owner: '',
-  raised_date: todayISO(),
-  eta: '',
-  impacted_tc_count: 0,
-  module: '',
-};
+function FolderIcon() {
+  return (
+    <svg className="defect-folder-icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l1.5 2H19.5A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5v-10Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function DefectCard({ defect, selected, onToggleSelect, onEdit, onDelete, onUncluster }) {
+  return (
+    <div className={`module-card defect-card severity-border-${defect.severity}`}>
+      <div className="module-header">
+        <label className="defect-select">
+          <input type="checkbox" checked={selected} onChange={onToggleSelect} />
+          <span className="defect-code">{defect.defect_code}</span>
+        </label>
+        <div className="defect-card-header-right">
+          <span className={`severity-badge-inline severity-${defect.severity}`}>{titleCase(defect.severity)}</span>
+          <button
+            type="button"
+            className="module-meta-edit-trigger"
+            onClick={onEdit}
+            title="Edit defect"
+          >
+            &#9998;
+          </button>
+        </div>
+      </div>
+
+      <div className="module-name">{defect.description}</div>
+
+      <div className="status-row">
+        <span>{defect.module}</span>
+        <span>{titleCase(defect.status)}</span>
+      </div>
+
+      <div className="details">
+        <div className="detail-row">
+          <span>Owner</span>
+          <span style={{ color: '#5a7a9a', fontWeight: 400 }}>{defect.owner || 'Unassigned'}</span>
+        </div>
+        <div className="detail-row">
+          <span>Raised</span>
+          <span style={{ color: '#5a7a9a', fontWeight: 400 }}>{defect.raised_date || '—'}</span>
+        </div>
+        <div className="detail-row">
+          <span>Due</span>
+          <span style={{ color: '#5a7a9a', fontWeight: 400 }}>{defect.eta || '—'}</span>
+        </div>
+        <div className="detail-row">
+          <span>Impacted TCs</span>
+          <span style={{ color: '#5a7a9a', fontWeight: 400 }}>{defect.impacted_tc_count}</span>
+        </div>
+        {defect.source_ref && (
+          <div className="detail-row">
+            <span>Source</span>
+            <span style={{ color: '#5a7a9a', fontWeight: 400 }}>{defect.source_ref}</span>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+        {onUncluster && (
+          <button type="button" className="archive" onClick={onUncluster}>Remove from folder</button>
+        )}
+        <button type="button" className="archive" onClick={onDelete} style={{ color: '#C5221F' }}>
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ClusterFolder({
+  clusterId,
+  members,
+  expanded,
+  onToggle,
+  renderCard,
+  allSelected,
+  onToggleSelectAll,
+  isRenaming,
+  renameDraft,
+  renameError,
+  onStartRename,
+  onRenameChange,
+  onSaveRename,
+  onCancelRename,
+  onUngroup,
+}) {
+  const openMembers = members.filter(m => m.status !== 'closed');
+  const worst = openMembers.length
+    ? openMembers.reduce((acc, m) => (severityRank(m.severity) > severityRank(acc) ? m.severity : acc), openMembers[0].severity)
+    : null;
+
+  return (
+    <div className={`defect-folder ${expanded ? 'expanded' : ''}`}>
+      <div
+        className="defect-folder-header"
+        style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flexWrap: 'wrap' }}
+        onClick={onToggle}
+      >
+        <input
+          type="checkbox"
+          checked={allSelected}
+          onChange={onToggleSelectAll}
+          onClick={e => e.stopPropagation()}
+          title="Select all in this folder"
+        />
+        <span className="defect-folder-chevron">{expanded ? '▾' : '▸'}</span>
+        <span className="defect-folder-icon" aria-hidden="true"><FolderIcon /></span>
+
+        {isRenaming ? (
+          <span
+            onClick={e => e.stopPropagation()}
+            style={{ display: 'flex', gap: 6, alignItems: 'center' }}
+          >
+            <input
+              autoFocus
+              value={renameDraft}
+              maxLength={MAX_FOLDER_NAME_LENGTH}
+              onChange={e => onRenameChange(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') onSaveRename();
+                if (e.key === 'Escape') onCancelRename();
+              }}
+            />
+            <button type="button" className="archive" onClick={onSaveRename}>Save</button>
+            <button type="button" className="archive" onClick={onCancelRename}>Cancel</button>
+          </span>
+        ) : (
+          <span
+            className="defect-folder-title"
+            onClick={e => { e.stopPropagation(); onStartRename(); }}
+            title="Click to rename this folder"
+            style={{ cursor: 'text' }}
+          >
+            {clusterId}
+          </span>
+        )}
+
+        <span className="defect-folder-count">{members.length} defect{members.length === 1 ? '' : 's'}</span>
+        <span className="defect-folder-count">
+          {worst ? `${openMembers.length} open, worst ${titleCase(worst)}` : 'All closed'}
+        </span>
+
+        <button
+          type="button"
+          className="archive"
+          onClick={e => { e.stopPropagation(); onUngroup(); }}
+          style={{ marginLeft: 'auto' }}
+        >
+          Ungroup folder
+        </button>
+      </div>
+
+      {isRenaming && renameError && (
+        <div className="module-meta-error" style={{ marginLeft: 32 }}>{renameError}</div>
+      )}
+
+      {expanded && (
+        <div className="defect-folder-body">
+          {members.map(renderCard)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function DefectsPage({ username }) {
   const [defects, setDefects] = useState([]);
-  const [loaded, setLoaded] = useState(false);
+  const [features, setFeatures] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filterSeverity, setFilterSeverity] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [selected, setSelected] = useState(new Set());
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [expandedFolders, setExpandedFolders] = useState(new Set());
+  const [moveTarget, setMoveTarget] = useState('');
 
-  async function load() {
-    setError('');
+  const [renamingClusterId, setRenamingClusterId] = useState(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const [renameError, setRenameError] = useState(null);
+
+  const [newDefect, setNewDefect] = useState({
+    description: '', severity: 'medium', module: '', owner: '', eta: '',
+  });
+  const [addError, setAddError] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const [creatingFromFailures, setCreatingFromFailures] = useState(false);
+
+  // Edit overlay (same pattern as Projects)
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState(null);
+
+  const editingDefect = editingId != null
+    ? defects.find(d => d.id === editingId) || null
+    : null;
+
+  function openEdit(defect) {
+    setEditingId(defect.id);
+    setEditDraft({
+      description: defect.description || '',
+      severity: defect.severity || 'medium',
+      status: defect.status || 'open',
+      owner: defect.owner || '',
+      module: defect.module || '',
+      eta: defect.eta || '',
+      raised_date: defect.raised_date || '',
+      impacted_tc_count: defect.impacted_tc_count ?? 0,
+    });
+    setEditError(null);
+  }
+
+  function closeEdit() {
+    setEditingId(null);
+    setEditDraft(null);
+    setEditError(null);
+    setEditSaving(false);
+  }
+
+  async function saveEdit() {
+    if (!editingId || !editDraft) return;
+    const description = (editDraft.description || '').trim();
+    if (!description) {
+      setEditError('Description is required.');
+      return;
+    }
+    if (!(editDraft.module || '').trim()) {
+      setEditError('Pick a feature.');
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
     try {
-      const res = await authFetch('/api/defects');
-      if (!res.ok) throw new Error('Failed to load defects');
-      const data = await res.json();
-      setDefects(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setError(e.message || 'Failed to load defects');
+      await handleUpdateDefect(editingId, {
+        description,
+        severity: editDraft.severity,
+        status: editDraft.status,
+        owner: (editDraft.owner || '').trim() || null,
+        module: editDraft.module,
+        eta: editDraft.eta || null,
+        raised_date: editDraft.raised_date || null,
+        impacted_tc_count: Number(editDraft.impacted_tc_count) || 0,
+      });
+      closeEdit();
+    } catch (err) {
+      setEditError(err.message || 'Failed to save');
     } finally {
-      setLoaded(true);
+      setEditSaving(false);
     }
   }
 
   useEffect(() => {
-    load();
+    fetchAll();
   }, []);
 
-  const filtered = useMemo(() => {
-    return defects.filter(d => {
-      if (filterSeverity !== 'all' && d.severity !== filterSeverity) return false;
-      if (filterStatus !== 'all' && d.status !== filterStatus) return false;
-      return true;
-    });
-  }, [defects, filterSeverity, filterStatus]);
-
-  const openCount = defects.filter(d => d.status !== 'closed').length;
-  const bySeverity = SEVERITIES.reduce((acc, s) => {
-    acc[s] = defects.filter(d => d.status !== 'closed' && d.severity === s).length;
-    return acc;
-  }, {});
-
-  function openCreate() {
-    setEditingId(null);
-    setForm({ ...emptyForm, raised_date: todayISO() });
-    setFormError('');
-    setShowForm(true);
-  }
-
-  function openEdit(d) {
-    setEditingId(d.id);
-    setForm({
-      description: d.description || '',
-      severity: d.severity || 'high',
-      status: d.status || 'open',
-      owner: d.owner || '',
-      raised_date: d.raised_date || todayISO(),
-      eta: d.eta || '',
-      impacted_tc_count: d.impacted_tc_count ?? 0,
-      module: d.module || '',
-    });
-    setFormError('');
-    setShowForm(true);
-  }
-
-  function closeForm() {
-    setShowForm(false);
-    setEditingId(null);
-    setFormError('');
-  }
-
-  async function handleSave() {
-    if (!form.description.trim()) {
-      setFormError('Description is required');
-      return;
-    }
-    if (!SEVERITIES.includes(form.severity)) {
-      setFormError('Invalid severity');
-      return;
-    }
-    if (!STATUSES.includes(form.status)) {
-      setFormError('Invalid status');
-      return;
-    }
-    if (form.status === 'closed' && editingId) {
-      const existing = defects.find(d => d.id === editingId);
-      if (existing && existing.status !== 'retest' && existing.status !== 'closed') {
-        setFormError('Status can only be Closed after Retest is completed and validated.');
-        return;
-      }
-    }
-
-    setSaving(true);
-    setFormError('');
+  async function fetchAll() {
+    setLoading(true);
+    setError('');
     try {
-      const payload = {
-        description: form.description.trim(),
-        severity: form.severity,
-        status: form.status,
-        owner: form.owner.trim() || null,
-        raised_date: form.raised_date || null,
-        eta: form.eta || null,
-        impacted_tc_count: Number(form.impacted_tc_count) || 0,
-        module: form.module.trim() || null,
-      };
+      const [defectsRes, featuresRes] = await Promise.all([
+        authFetch('/api/defects'),
+        authFetch('/api/features'),
+      ]);
+      if (!defectsRes.ok || !featuresRes.ok) throw new Error('bad response');
+      setDefects(await defectsRes.json());
+      setFeatures((await featuresRes.json()).filter(f => !f.archived));
+      setLoading(false);
+    } catch (err) {
+      setError('Could not load defects.');
+      setLoading(false);
+    }
+  }
 
-      const url = editingId ? `/api/defects/${editingId}` : '/api/defects';
-      const method = editingId ? 'PATCH' : 'POST';
-      const res = await authFetch(url, {
-        method,
+  async function handleAddDefect() {
+    const description = newDefect.description.trim();
+    const module = newDefect.module.trim();
+    if (!description) {
+      setAddError('Description is required.');
+      return;
+    }
+    if (!module) {
+      setAddError('Pick a feature.');
+      return;
+    }
+    setAdding(true);
+    setAddError(null);
+    try {
+      const res = await authFetch('/api/defects', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          description,
+          severity: newDefect.severity,
+          module,
+          owner: newDefect.owner.trim() || null,
+          eta: newDefect.eta || null,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || 'Save failed');
+        throw new Error(data.detail || 'Failed to add defect');
       }
-      closeForm();
-      await load();
-    } catch (e) {
-      setFormError(e.message || 'Save failed');
+      setNewDefect({ description: '', severity: 'medium', module: '', owner: '', eta: '' });
+      await fetchAll();
+    } catch (err) {
+      setAddError(err.message);
     } finally {
-      setSaving(false);
+      setAdding(false);
     }
   }
 
-  async function handleDelete(id) {
-    if (!window.confirm('Delete this defect permanently?')) return;
+  async function handleCreateFromFailures() {
+    setCreatingFromFailures(true);
+    try {
+      const res = await authFetch('/api/defects/from-failures', { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to create defects');
+      const data = await res.json();
+      window.alert(`Created ${data.created} defect(s) from current failures.${data.skipped ? ` Skipped ${data.skipped} with no valid feature.` : ''}`);
+      await fetchAll();
+    } catch (err) {
+      window.alert('Could not create defects from failures.');
+    } finally {
+      setCreatingFromFailures(false);
+    }
+  }
+
+  function toggleSelect(id) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllInFolder(members) {
+    const ids = members.map(m => m.id);
+    const allSelected = ids.length > 0 && ids.every(id => selected.has(id));
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        ids.forEach(id => next.delete(id));
+      } else {
+        ids.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  }
+
+  function toggleFolder(clusterId) {
+    setExpandedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(clusterId)) next.delete(clusterId); else next.add(clusterId);
+      return next;
+    });
+  }
+
+  async function handleGroupSelected() {
+    const groupingIntoExisting = moveTarget !== '';
+    if (!groupingIntoExisting && selected.size < 2) return;
+    if (groupingIntoExisting && selected.size < 1) return;
+
+    const existingMembers = groupingIntoExisting ? (clusters[moveTarget] || []) : [];
+    const mergedIds = new Set([...selected, ...existingMembers.map(m => m.id)]);
+
+    try {
+      const res = await authFetch('/api/defects/cluster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          defect_ids: [...mergedIds],
+          ...(groupingIntoExisting ? { cluster_id: moveTarget } : {}),
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to group');
+      const data = await res.json();
+      setSelected(new Set());
+      setMoveTarget('');
+      if (data.cluster_id) {
+        setExpandedFolders(prev => new Set([...prev, data.cluster_id]));
+      }
+      await fetchAll();
+    } catch (err) {
+      window.alert('Could not group the selected defects.');
+    }
+  }
+
+  async function handleUncluster(id) {
+    try {
+      const res = await authFetch(`/api/defects/${id}/uncluster`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to uncluster');
+      await fetchAll();
+    } catch (err) {
+      window.alert('Could not remove this defect from its folder.');
+    }
+  }
+
+  async function handleUngroupFolder(clusterId, members) {
+    if (!window.confirm(`Ungroup this folder? Its ${members.length} defect${members.length === 1 ? '' : 's'} will become unclustered.`)) {
+      return;
+    }
+    try {
+      const results = await Promise.all(
+        members.map(m => authFetch(`/api/defects/${m.id}/uncluster`, { method: 'POST' }))
+      );
+      if (results.some(r => !r.ok)) throw new Error('Failed to ungroup');
+      await fetchAll();
+    } catch (err) {
+      window.alert('Could not ungroup this folder.');
+    }
+  }
+
+  function startRename(clusterId) {
+    setRenamingClusterId(clusterId);
+    setRenameDraft(clusterId);
+    setRenameError(null);
+  }
+
+  async function saveRename(clusterId, members) {
+    const trimmed = renameDraft.trim();
+    if (!trimmed) {
+      setRenameError('Name cannot be empty.');
+      return;
+    }
+    if (trimmed.length > MAX_FOLDER_NAME_LENGTH) {
+      setRenameError(`Keep it under ${MAX_FOLDER_NAME_LENGTH} characters.`);
+      return;
+    }
+    const collision = clusterEntries.some(([id]) => id !== clusterId && id === trimmed);
+    if (collision) {
+      setRenameError('A folder with that name already exists.');
+      return;
+    }
+    if (trimmed === clusterId) {
+      setRenamingClusterId(null);
+      return;
+    }
+    try {
+      const res = await authFetch('/api/defects/cluster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ defect_ids: members.map(m => m.id), cluster_id: trimmed }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'Failed to rename folder');
+      }
+      setRenamingClusterId(null);
+      await fetchAll();
+    } catch (err) {
+      setRenameError(err.message);
+    }
+  }
+
+  async function handleUpdateDefect(id, patch) {
+    const res = await authFetch(`/api/defects/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || 'Failed to update defect');
+    }
+    const updated = await res.json();
+    setDefects(prev => prev.map(d => (d.id === id ? updated : d)));
+    return updated;
+  }
+
+  async function handleDeleteDefect(id) {
+    if (!window.confirm('Delete this defect? This cannot be undone.')) return;
     try {
       const res = await authFetch(`/api/defects/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete failed');
-      await load();
-    } catch (e) {
-      setError(e.message || 'Delete failed');
+      if (!res.ok) throw new Error('Failed to delete defect');
+      setDefects(prev => prev.filter(d => d.id !== id));
+      setSelected(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      if (editingId === id) closeEdit();
+    } catch (err) {
+      window.alert('Could not delete this defect.');
     }
+  }
+
+  const filtered = statusFilter === 'All' ? defects : defects.filter(d => d.status === statusFilter);
+  const clusters = {};
+  const unclustered = [];
+  filtered.forEach(d => {
+    if (d.cluster_id) {
+      if (!clusters[d.cluster_id]) clusters[d.cluster_id] = [];
+      clusters[d.cluster_id].push(d);
+    } else {
+      unclustered.push(d);
+    }
+  });
+  const clusterEntries = Object.entries(clusters);
+
+  function renderDefectCard(d) {
+    return (
+      <DefectCard
+        key={d.id}
+        defect={d}
+        selected={selected.has(d.id)}
+        onToggleSelect={() => toggleSelect(d.id)}
+        onEdit={() => openEdit(d)}
+        onDelete={() => handleDeleteDefect(d.id)}
+        onUncluster={d.cluster_id ? () => handleUncluster(d.id) : null}
+      />
+    );
   }
 
   return (
@@ -189,219 +543,289 @@ function DefectsPage({ username }) {
           <div className="brand welcome-brand">Welcome, {username || 'User'}</div>
           <h1>Defects</h1>
         </div>
-        <button type="button" className="module-meta-save" onClick={openCreate}>
-          + Add Defect
+        <div style={{ display: 'flex', gap: 8 }}>
+          {selected.size >= 1 && (
+            <>
+              {clusterEntries.length > 0 && (
+                <select
+                  value={moveTarget}
+                  onChange={e => setMoveTarget(e.target.value)}
+                  title="Add selected defects into an existing folder"
+                >
+                  <option value="">Existing folder…</option>
+                  {clusterEntries.map(([id]) => (
+                    <option key={id} value={id}>{id}</option>
+                  ))}
+                </select>
+              )}
+              {moveTarget ? (
+                <button className="btn btn-primary" onClick={handleGroupSelected}>
+                  Add to folder ({selected.size})
+                </button>
+              ) : (
+                <button
+                  className="btn btn-primary"
+                  onClick={handleGroupSelected}
+                  disabled={selected.size < 2}
+                >
+                  New folder ({selected.size})
+                </button>
+              )}
+              <button className="btn btn-dark" onClick={() => { setSelected(new Set()); setMoveTarget(''); }}>
+                Clear selection
+              </button>
+            </>
+          )}
+          <button className="btn btn-dark" onClick={handleCreateFromFailures} disabled={creatingFromFailures}>
+            {creatingFromFailures ? 'Creating...' : 'Create from current failures'}
+          </button>
+        </div>
+      </div>
+
+      <div className="controls">
+        <div className="control-group">
+          <label>Description</label>
+          <input
+            placeholder="What's broken?"
+            value={newDefect.description}
+            onChange={e => setNewDefect({ ...newDefect, description: e.target.value })}
+          />
+        </div>
+        <div className="control-group">
+          <label>Feature</label>
+          <input
+            list="defect-feature-list"
+            placeholder="Select or type a feature"
+            value={newDefect.module}
+            onChange={e => setNewDefect({ ...newDefect, module: e.target.value })}
+          />
+          <datalist id="defect-feature-list">
+            {features.map(f => (
+              <option key={f.name} value={f.name} />
+            ))}
+          </datalist>
+        </div>
+        <div className="control-group">
+          <label>Severity</label>
+          <select
+            value={newDefect.severity}
+            onChange={e => setNewDefect({ ...newDefect, severity: e.target.value })}
+          >
+            {SEVERITY_OPTIONS.map(s => (
+              <option key={s} value={s}>{titleCase(s)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="control-group">
+          <label>Owner</label>
+          <input
+            placeholder="e.g. Dara"
+            value={newDefect.owner}
+            onChange={e => setNewDefect({ ...newDefect, owner: e.target.value })}
+          />
+        </div>
+        <div className="control-group">
+          <label>Due</label>
+          <input
+            type="date"
+            value={newDefect.eta}
+            onChange={e => setNewDefect({ ...newDefect, eta: e.target.value })}
+          />
+        </div>
+        <button className="btn btn-dark" onClick={handleAddDefect} disabled={adding}>
+          {adding ? 'Adding...' : '+ Add Defect'}
         </button>
       </div>
+      {addError && <div className="module-meta-error">{addError}</div>}
 
-      <div className="defects-summary-row">
-        <div className="severity-card">
-          <h3>Open Defects</h3>
-          <div className="insight-big">{openCount}</div>
-          <p className="insight-note">of {defects.length} total</p>
-        </div>
-        <div className="severity-card">
-          <h3>By Severity (Open)</h3>
-          <div className="severity-badges">
-            {SEVERITIES.map(s => (
-              <div key={s} className={`severity-badge severity-${s}`}>
-                <span className="severity-count">{bySeverity[s]}</span>
-                <span className="severity-label">{SEVERITY_LABEL[s]}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="filters">
+        {['All', ...STATUS_OPTIONS].map(s => (
+          <button
+            key={s}
+            className={`filter-btn ${statusFilter === s ? 'active' : ''}`}
+            onClick={() => setStatusFilter(s)}
+          >
+            {s === 'All' ? 'All' : titleCase(s)}
+          </button>
+        ))}
       </div>
 
-      <div className="defects-filters">
-        <label>
-          Severity
-          <select value={filterSeverity} onChange={e => setFilterSeverity(e.target.value)}>
-            <option value="all">All</option>
-            {SEVERITIES.map(s => (
-              <option key={s} value={s}>{SEVERITY_LABEL[s]}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Status
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-            <option value="all">All</option>
-            {STATUSES.map(s => (
-              <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-            ))}
-          </select>
-        </label>
-      </div>
+      {loading && <div className="placeholder"><p>Loading defects.</p></div>}
+      {error && <div className="placeholder"><p>{error}</p></div>}
 
-      {error && <p className="modal-status" style={{ color: '#C5221F' }}>{error}</p>}
-
-      {!loaded && <p className="modal-status">Loading…</p>}
-
-      {loaded && filtered.length === 0 && (
+      {!loading && !error && filtered.length === 0 && (
         <div className="placeholder">
-          <p>No defects match the current filters.</p>
+          <p>No defects yet. Add one above, or raise one from a failing test on the Features page.</p>
         </div>
       )}
 
-      {filtered.length > 0 && (
-        <div className="defects-table-wrap">
-          <table className="defects-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Description</th>
-                <th>Module</th>
-                <th># TCs</th>
-                <th>Severity</th>
-                <th>Status</th>
-                <th>Owner</th>
-                <th>Raised</th>
-                <th>ETA</th>
-                <th>Aging</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(d => {
-                const aging = d.status === 'closed' ? null : daysBetween(d.raised_date);
-                return (
-                  <tr key={d.id} className={d.status === 'closed' ? 'defect-row-closed' : ''}>
-                    <td className="defect-id">{d.defect_code || `DEF-${d.id}`}</td>
-                    <td className="defect-desc">{d.description}</td>
-                    <td>{d.module || '—'}</td>
-                    <td>{d.impacted_tc_count ?? 0}</td>
-                    <td>
-                      <span className={`defect-sev severity-${d.severity}`}>
-                        {SEVERITY_LABEL[d.severity] || d.severity}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`defect-status status-${d.status}`}>
-                        {STATUS_LABEL[d.status] || d.status}
-                      </span>
-                    </td>
-                    <td>{d.owner || '—'}</td>
-                    <td>{d.raised_date || '—'}</td>
-                    <td>{d.eta || '—'}</td>
-                    <td>{aging === null ? '—' : `${aging}d`}</td>
-                    <td className="defect-actions">
-                      <button type="button" className="archive" onClick={() => openEdit(d)}>Edit</button>
-                      <button type="button" className="project-delete" onClick={() => handleDelete(d.id)}>Delete</button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {!loading && !error && filtered.length > 0 && (
+        <div className="defects-sections">
+          {clusterEntries.length > 0 && (
+            <section className="defects-section">
+              <h2 className="defects-section-title">Clustered</h2>
+              <div className="defects-folder-list">
+                {clusterEntries.map(([clusterId, members]) => {
+                  const ids = members.map(m => m.id);
+                  const allSelected = ids.length > 0 && ids.every(id => selected.has(id));
+                  return (
+                    <ClusterFolder
+                      key={clusterId}
+                      clusterId={clusterId}
+                      members={members}
+                      expanded={expandedFolders.has(clusterId)}
+                      onToggle={() => toggleFolder(clusterId)}
+                      renderCard={renderDefectCard}
+                      allSelected={allSelected}
+                      onToggleSelectAll={() => toggleSelectAllInFolder(members)}
+                      isRenaming={renamingClusterId === clusterId}
+                      renameDraft={renamingClusterId === clusterId ? renameDraft : ''}
+                      renameError={renamingClusterId === clusterId ? renameError : null}
+                      onStartRename={() => startRename(clusterId)}
+                      onRenameChange={setRenameDraft}
+                      onSaveRename={() => saveRename(clusterId, members)}
+                      onCancelRename={() => setRenamingClusterId(null)}
+                      onUngroup={() => handleUngroupFolder(clusterId, members)}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          <section className="defects-section">
+            <h2 className="defects-section-title">
+              Unclustered
+              {unclustered.length > 0 && (
+                <span className="defects-section-count">{unclustered.length}</span>
+              )}
+            </h2>
+            {unclustered.length === 0 ? (
+              <p className="defects-section-empty">
+                {clusterEntries.length > 0
+                  ? 'All defects are in folders. Select two or more and use "New folder" to group more.'
+                  : 'No unclustered defects.'}
+              </p>
+            ) : (
+              <div className="modules">
+                {unclustered.map(renderDefectCard)}
+              </div>
+            )}
+          </section>
         </div>
       )}
 
-      <p className="insight-note" style={{ marginTop: 16 }}>
-        Defect status can only be set to Closed after Retest is completed and the result is validated by the business user.
-      </p>
-
-      {showForm && (
-        <div className="modal-overlay" onClick={closeForm}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+      {/* Edit overlay — same pattern as Projects */}
+      {editingDefect && editDraft && (
+        <div
+          className="modal-overlay"
+          onClick={e => {
+            if (e.target === e.currentTarget) closeEdit();
+          }}
+        >
+          <div className="modal-content project-detail-modal">
             <div className="modal-header">
-              <h2>{editingId ? 'Edit Defect' : 'Add Defect'}</h2>
-              <button type="button" className="modal-close" onClick={closeForm}>×</button>
+              <h2>{editingDefect.defect_code}</h2>
+              <button type="button" className="modal-close" onClick={closeEdit}>
+                ×
+              </button>
             </div>
             <div className="modal-body">
-              <div className="module-meta-form" style={{ marginTop: 0, background: 'none', border: 'none', padding: 0 }}>
+              <div className="module-meta-form" style={{ marginTop: 0 }}>
                 <label className="module-meta-field">
                   <span>Description</span>
                   <textarea
-                    value={form.description}
-                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                     rows={3}
-                    placeholder="Error description"
+                    value={editDraft.description}
+                    onChange={e => setEditDraft({ ...editDraft, description: e.target.value })}
                   />
                 </label>
                 <label className="module-meta-field">
-                  <span>Module (optional)</span>
+                  <span>Feature</span>
                   <input
-                    value={form.module}
-                    onChange={e => setForm(f => ({ ...f, module: e.target.value }))}
-                    placeholder="e.g. User Authentication"
+                    list="defect-edit-feature-list"
+                    placeholder="Select or type a feature"
+                    value={editDraft.module}
+                    onChange={e => setEditDraft({ ...editDraft, module: e.target.value })}
                   />
+                  <datalist id="defect-edit-feature-list">
+                    {features.map(f => (
+                      <option key={f.name} value={f.name} />
+                    ))}
+                  </datalist>
                 </label>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <label className="module-meta-field" style={{ flex: 1 }}>
-                    <span>Severity</span>
-                    <select
-                      value={form.severity}
-                      onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}
-                    >
-                      {SEVERITIES.map(s => (
-                        <option key={s} value={s}>{SEVERITY_LABEL[s]}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="module-meta-field" style={{ flex: 1 }}>
-                    <span>Status</span>
-                    <select
-                      value={form.status}
-                      onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                    >
-                      {STATUSES.map(s => (
-                        <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
                 <label className="module-meta-field">
-                  <span>Current Owner</span>
+                  <span>Severity</span>
+                  <select
+                    value={editDraft.severity}
+                    onChange={e => setEditDraft({ ...editDraft, severity: e.target.value })}
+                  >
+                    {SEVERITY_OPTIONS.map(s => (
+                      <option key={s} value={s}>{titleCase(s)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="module-meta-field">
+                  <span>Status</span>
+                  <select
+                    value={editDraft.status}
+                    onChange={e => setEditDraft({ ...editDraft, status: e.target.value })}
+                  >
+                    {STATUS_OPTIONS.map(s => (
+                      <option key={s} value={s}>{titleCase(s)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="module-meta-field">
+                  <span>Owner</span>
                   <input
-                    value={form.owner}
-                    onChange={e => setForm(f => ({ ...f, owner: e.target.value }))}
-                    placeholder="Assignee"
+                    value={editDraft.owner}
+                    onChange={e => setEditDraft({ ...editDraft, owner: e.target.value })}
+                    placeholder="e.g. Dara"
                   />
                 </label>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <label className="module-meta-field" style={{ flex: 1 }}>
-                    <span>Raised Date</span>
-                    <input
-                      type="date"
-                      value={form.raised_date}
-                      onChange={e => setForm(f => ({ ...f, raised_date: e.target.value }))}
-                    />
-                  </label>
-                  <label className="module-meta-field" style={{ flex: 1 }}>
-                    <span>ETA</span>
-                    <input
-                      type="date"
-                      value={form.eta}
-                      onChange={e => setForm(f => ({ ...f, eta: e.target.value }))}
-                    />
-                  </label>
-                </div>
                 <label className="module-meta-field">
-                  <span># Impacted TCs</span>
+                  <span>Raised</span>
+                  <input
+                    type="date"
+                    value={editDraft.raised_date || ''}
+                    onChange={e => setEditDraft({ ...editDraft, raised_date: e.target.value })}
+                  />
+                </label>
+                <label className="module-meta-field">
+                  <span>Due (expected fix-ready date)</span>
+                  <input
+                    type="date"
+                    value={editDraft.eta || ''}
+                    onChange={e => setEditDraft({ ...editDraft, eta: e.target.value })}
+                  />
+                </label>
+                <label className="module-meta-field">
+                  <span>Impacted TCs</span>
                   <input
                     type="number"
-                    min={0}
-                    value={form.impacted_tc_count}
-                    onChange={e => setForm(f => ({ ...f, impacted_tc_count: e.target.value }))}
+                    min="0"
+                    value={editDraft.impacted_tc_count}
+                    onChange={e => setEditDraft({ ...editDraft, impacted_tc_count: e.target.value })}
                   />
                 </label>
-                {formError && <div className="module-meta-error">{formError}</div>}
+                {editingDefect.source_ref && (
+                  <div className="detail-row" style={{ marginTop: 4 }}>
+                    <span>Source</span>
+                    <span style={{ color: '#5a7a9a', fontWeight: 400 }}>{editingDefect.source_ref}</span>
+                  </div>
+                )}
+                {editError && <div className="module-meta-error">{editError}</div>}
                 <div className="module-meta-actions">
                   <button
                     type="button"
                     className="module-meta-save"
-                    onClick={handleSave}
-                    disabled={saving}
+                    onClick={saveEdit}
+                    disabled={editSaving}
                   >
-                    {saving ? 'Saving…' : 'Save'}
+                    {editSaving ? 'Saving...' : 'Save'}
                   </button>
-                  <button
-                    type="button"
-                    className="module-meta-cancel"
-                    onClick={closeForm}
-                    disabled={saving}
-                  >
+                  <button type="button" className="module-meta-cancel" onClick={closeEdit}>
                     Cancel
                   </button>
                 </div>

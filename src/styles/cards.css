@@ -524,6 +524,15 @@
   font-size: 11px;
   color: var(--body-text-muted);
   margin-top: 6px;
+  max-width: 150px;
+  line-height: 1.35;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.merged-meta-line {
+  white-space: normal;
 }
 
 .summary-below-ring {
@@ -1070,8 +1079,15 @@
 
 .defect-actions {
   white-space: nowrap;
-  display: flex;
-  gap: 8px;
+}
+
+.defect-actions button {
+  align-self: auto;
+  margin-top: 0;
+}
+
+.defect-actions button + button {
+  margin-left: 10px;
 }
 
 .sidebar-logo-mark-img {
@@ -1087,10 +1103,6 @@
   height: 84px;
 }
 
-.sidebar-logo {
-  justify-content: center;
-}
-
 .page-header .brand.welcome-brand {
   font-size: 13px;
   font-weight: 600;
@@ -1099,47 +1111,22 @@
   color: var(--body-text-muted);
 }
 
-/* Sidebar icon: no focus ring */
+/* Sidebar icon: no border, outline or shadow (this also suppresses the
+   active glow declared in sidebar.css, which is the current behaviour). */
 .sidebar-icon,
-.sidebar-icon.active,
-.sidebar-footer .sidebar-icon,
-.sidebar-footer .sidebar-icon.active {
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
+.sidebar-icon.active {
+  border: none;
+  outline: none;
+  box-shadow: none;
 }
 
 .sidebar-icon:focus,
-.sidebar-icon:focus-visible,
-.sidebar-footer .sidebar-icon:focus {
-  outline: none !important;
-  box-shadow: none !important;
+.sidebar-icon:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
-/* Profile / sign-out */
-.main-content:has(.profile-logout-screen) {
-  padding: 0 !important;
-  overflow: hidden;
-}
-
-.profile-logout-screen.login-screen {
-  position: relative !important;
-  width: 100% !important;
-  min-height: 100vh !important;
-  inset: auto !important;
-  left: auto !important;
-  right: auto !important;
-  top: auto !important;
-  bottom: auto !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  padding: 48px 64px !important;
-  box-sizing: border-box;
-  transform: none !important;
-  zoom: 1 !important;
-}
-
+/* Profile / sign out screen text. Container sizing lives in layout.css. */
 .profile-logout-screen .logout-content {
   display: flex;
   flex-direction: column;
@@ -1147,11 +1134,11 @@
   text-align: right;
   gap: 8px;
   z-index: 2;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
 }
 
 .profile-logout-screen .logout-label {
@@ -1176,9 +1163,10 @@
   bottom: 36px;
   width: min(280px, 28vw);
   height: auto;
-  border: 0 !important;
-  box-shadow: none !important;
-  background: transparent !important;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  z-index: 2;
 }
 
 /* Login page logo */
@@ -1195,4 +1183,609 @@
   box-shadow: none;
   background: transparent;
   z-index: 1;
+}
+
+/* Defects page — sections & folder clusters */
+.defects-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.defects-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pacific-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.defects-section-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--body-text-muted);
+  text-transform: none;
+  letter-spacing: normal;
+  background: rgba(4, 187, 228, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.defects-section-empty {
+  font-size: 13px;
+  color: var(--body-text-muted);
+  margin: 0;
+  padding: 12px 0;
+}
+
+.defects-folder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.defect-folder {
+  background: var(--miracle-white);
+  border: 1px solid var(--light-blue-border);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow-light);
+  overflow: hidden;
+}
+
+.defect-folder.expanded {
+  border-color: var(--pacific-blue);
+}
+
+.defect-folder-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.defect-folder-header:hover {
+  background: rgba(4, 187, 228, 0.06);
+}
+
+.defect-folder-chevron {
+  font-size: 12px;
+  color: var(--pacific-blue);
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.defect-folder-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.defect-folder-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--oxford-blue);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.defect-folder-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--body-text-muted);
+  flex-shrink: 0;
+}
+
+.defect-folder-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--light-blue-border);
+  padding-top: 16px;
+}
+
+.defect-card {
+  border-left: 4px solid var(--light-blue-border);
+}
+
+.defect-card.severity-border-critical { border-left-color: #C5221F; }
+.defect-card.severity-border-high { border-left-color: #D97706; }
+.defect-card.severity-border-medium { border-left-color: #04BBE4; }
+.defect-card.severity-border-low { border-left-color: #5B7083; }
+
+.defect-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.defect-select input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--pacific-blue);
+  cursor: pointer;
+}
+
+.defect-code {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--oxford-blue);
+}
+
+.severity-badge-inline {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 10px;
+  border-radius: 12px;
+}
+
+.severity-badge-inline.severity-critical { background: rgba(198, 40, 40, 0.12); color: #C5221F; }
+.severity-badge-inline.severity-high { background: rgba(217, 119, 6, 0.14); color: #D97706; }
+.severity-badge-inline.severity-medium { background: rgba(4, 187, 228, 0.12); color: var(--pacific-blue); }
+.severity-badge-inline.severity-low { background: rgba(91, 112, 131, 0.12); color: #5B7083; }
+
+.raise-defect-trigger {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pacific-blue);
+  background: none;
+  border: 1px solid var(--pacific-blue);
+  border-radius: 12px;
+  padding: 2px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.raise-defect-trigger:hover {
+  background: rgba(4, 187, 228, 0.1);
+}
+
+.raised-defect-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1B7A32;
+  white-space: nowrap;
+}
+/* Project checklist multi-assignees */
+.project-checklist-assignees {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--pacific-blue);
+  background: rgba(4, 187, 228, 0.08);
+  border: none;
+  border-radius: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-checklist-assignees:hover {
+  background: rgba(4, 187, 228, 0.16);
+}
+
+.project-checklist-assignees-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.project-checklist-assignees-edit input {
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--light-blue-border);
+  border-radius: 6px;
+  font-family: inherit;
+  width: 110px;
+  background: var(--miracle-white);
+  color: var(--body-text);
+}
+
+.project-checklist-add input + input {
+  flex: 0 0 110px;
+  min-width: 90px;
+}
+
+/* Compact project cards — fixed height, checklist lives in overlay */
+.project-card-compact {
+  min-height: 0;
+}
+
+.project-open-btn {
+  align-self: stretch;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pacific-blue);
+  background: rgba(4, 187, 228, 0.08);
+  border: 1px solid rgba(4, 187, 228, 0.25);
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.project-open-btn:hover {
+  background: rgba(4, 187, 228, 0.16);
+}
+
+.project-detail-modal {
+  max-width: 520px;
+}
+
+.project-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--light-blue-border);
+}
+
+.project-detail-meta .detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.project-detail-meta .detail-row > span:first-child {
+  color: var(--body-text-muted);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.project-detail-meta .detail-row > span:last-child {
+  color: var(--body-text);
+  font-weight: 500;
+  text-align: right;
+}
+
+.project-checklist-in-modal {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+/* Stacked add row so assignees never forces the card width */
+.project-checklist-add-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.project-checklist-add-stacked > input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.project-checklist-add-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.project-checklist-add-row input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--light-blue-border);
+  border-radius: 8px;
+  font-family: inherit;
+  background: var(--miracle-white);
+  color: var(--body-text);
+}
+
+.project-checklist-add-row input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+/* Assignees chip — don't grow the row */
+.project-checklist-item {
+  flex-wrap: wrap;
+}
+
+.project-checklist-assignees {
+  max-width: 140px;
+}
+
+.project-checklist-assignees-edit {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.project-checklist-assignees-edit input {
+  width: 140px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Form selects — Sedayu One blue (Feature, Severity, status, folder target, etc.) */
+.controls select,
+.control-group select,
+.page-header select,
+.defects-filters select,
+.module-meta-field select,
+.project-checklist-assignees-edit select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--oxford-blue);
+  background-color: var(--miracle-white);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2304BBE4' d='M1.4 0L6 4.6 10.6 0 12 1.4 6 7.4 0 1.4z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 8px;
+  border: 1.5px solid var(--pacific-blue);
+  border-radius: 10px;
+  padding: 8px 36px 8px 12px;
+  min-width: 120px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.controls select:hover,
+.control-group select:hover,
+.page-header select:hover,
+.defects-filters select:hover,
+.module-meta-field select:hover {
+  background-color: rgba(4, 187, 228, 0.08);
+  border-color: var(--pacific-blue);
+}
+
+.controls select:focus,
+.control-group select:focus,
+.page-header select:focus,
+.defects-filters select:focus,
+.module-meta-field select:focus {
+  outline: none;
+  border-color: var(--pacific-blue);
+  box-shadow: 0 0 0 3px rgba(4, 187, 228, 0.2);
+  background-color: var(--miracle-white);
+}
+
+.controls select:disabled,
+.control-group select:disabled {
+  opacity: 0.55;
+  cursor: default;
+  background-color: #f0f4f8;
+}
+
+/* Defect card: pencil top-right like Features */
+.defect-card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 2D folder icon (sidebar-style outline) */
+.defect-folder-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--pacific-blue);
+  flex-shrink: 0;
+}
+
+.defect-folder-icon-svg {
+  display: block;
+}
+
+/* Kill any remaining profile / sidebar chrome borders */
+.sidebar .sidebar-icon,
+.sidebar a.sidebar-icon,
+.sidebar button.sidebar-icon,
+.sidebar .sidebar-footer .sidebar-icon,
+.sidebar .sidebar-profile,
+.sidebar a[href*="profile"],
+.sidebar a[href*="Profile"] {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background-image: none;
+}
+
+.sidebar .sidebar-icon:hover,
+.sidebar .sidebar-icon.active,
+.sidebar .sidebar-icon:focus,
+.sidebar .sidebar-icon:focus-visible {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Tasks board */
+.task-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.task-column {
+  background: var(--miracle-white);
+  border: 1px solid var(--light-blue-border);
+  border-radius: 20px;
+  box-shadow: var(--card-shadow-light);
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.task-column-header {
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pacific-blue);
+  border-bottom: 1px solid var(--light-blue-border);
+}
+
+.task-column-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task-card {
+  background: var(--light-blue-bg, #f5f9fc);
+  border: 1px solid var(--light-blue-border);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.task-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--oxford-blue);
+  line-height: 1.3;
+}
+
+.task-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.task-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(4, 187, 228, 0.12);
+  color: var(--pacific-blue);
+}
+
+.task-chip.priority-high {
+  background: rgba(198, 40, 40, 0.12);
+  color: #C5221F;
+}
+
+.task-chip.priority-medium {
+  background: rgba(217, 119, 6, 0.14);
+  color: #D97706;
+}
+
+.task-chip.priority-low {
+  background: rgba(46, 125, 50, 0.12);
+  color: #1B7A32;
+}
+
+.task-due {
+  color: var(--body-text-muted);
+  font-weight: 600;
+}
+
+.task-pic {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--oxford-blue);
+  background: rgba(4, 187, 228, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.task-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.task-card-actions select {
+  min-width: 100px;
+}
+
+@media (max-width: 900px) {
+  .task-board {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Feature severity chips */
+.feature-severity-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.feature-severity-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--body-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.feature-severity-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.feature-sev-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 8px;
+}
+
+.feature-sev-chip.severity-critical {
+  background: rgba(198, 40, 40, 0.12);
+  color: #C5221F;
+}
+
+.feature-sev-chip.severity-high {
+  background: rgba(217, 119, 6, 0.14);
+  color: #D97706;
+}
+
+.feature-sev-chip.severity-medium {
+  background: rgba(4, 187, 228, 0.12);
+  color: var(--pacific-blue);
+}
+
+.feature-sev-chip.severity-low {
+  background: rgba(91, 112, 131, 0.12);
+  color: #5B7083;
 }

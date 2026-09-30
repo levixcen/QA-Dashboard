@@ -7,7 +7,6 @@
 }
 
 :root {
-  /* GSM Palette Tokens */
   --pacific-blue: #04BBE4;
   --electric-indigo: #03018E;
   --oxford-blue: #0D2744;
@@ -18,25 +17,24 @@
   --jet-black: #000000;
   --miracle-white: #FFFFFF;
 
-    /* Typography Tokens */
   --font-display: 'Geologica', Arial, sans-serif;
 
-  /* Refined Light Theme Tokens */
+  --page-text: #0D2744;
+  --page-text-muted: #3B536F;
   --body-text: #0D2744;
   --body-text-muted: #3B536F;
+
   --border-focus: #04BBE4;
   --light-blue-bg: #F2F8FC;
-  --light-blue-border: #BCE3F5;
-  --card-shadow-light: 0 4px 14px rgba(4, 187, 228, 0.06);
-  --card-shadow-hover: 0 8px 24px rgba(4, 187, 228, 0.12);
+  --light-blue-border: #D0E4F0;
+  --card-shadow-light: 0 8px 28px rgba(13, 39, 68, 0.08);
+  --card-shadow-hover: 0 12px 32px rgba(13, 39, 68, 0.12);
 
-  /* Shared Sidebar Blue Gradient for Borders */
   --sidebar-border-gradient: linear-gradient(135deg, #04BBE4 0%, #0c4a8a 60%, #031a4a 100%);
 }
 
 body {
   font-family: Arial, system-ui, -apple-system, sans-serif;
-  background: var(--cloud-dancer);
   color: var(--body-text);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;

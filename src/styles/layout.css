@@ -35,13 +35,13 @@
   font-size: 28px;
   font-family: var(--font-display);
   font-weight: 700;
-  color: var(--oxford-blue);
+  color: var(--page-text, #f5f8fc);
 }
 
 .last-synced {
   font-size: 12px;
   font-weight: 600;
-  color: var(--body-text-muted);
+  color: var(--page-text-muted, rgba(245, 248, 252, 0.62));
   font-family: Arial, system-ui, sans-serif;
 }
 
@@ -153,16 +153,24 @@
     stroke-dashoffset: 0;
   }
 }
+.main-content.main-content-full {
+  position: relative;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  overflow: hidden;
+}
 
-.profile-page {
-  margin: -28px -32px -48px;
-  padding: 28px 32px 48px;
-  min-height: 100vh;
-
-  background-image:
-    linear-gradient(to left, rgba(2, 1, 60, 0.88) 0%, rgba(2, 1, 60, 0.15) 100%),
-    url('/s1-login-bg.jpg');
-  background-size: cover, cover;
-  background-position: center, center;
-  background-repeat: no-repeat, no-repeat;
+.main-content.main-content-full .profile-logout-screen {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 48px 64px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }

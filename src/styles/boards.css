@@ -108,3 +108,27 @@
   border-radius: 14px;
   padding: 2px 8px;
 }
+
+.task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.task-actions select {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--light-blue-border);
+  border-radius: 8px;
+  background: var(--miracle-white);
+  color: var(--body-text);
+}
+
+.task-actions .archive,
+.task-actions .project-delete {
+  align-self: center;
+  margin-top: 0;
+}

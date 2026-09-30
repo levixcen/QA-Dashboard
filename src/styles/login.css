@@ -1,4 +1,3 @@
-
 .login-screen {
   min-height: 100vh;
   display: flex;
@@ -41,19 +40,29 @@
 }
 
 .login-card .control-group label {
-  color: var(--miracle-white);
+  color: var(--miracle-white) !important;
 }
 
 .login-card .control-group input {
   width: 100%;
-  background: var(--miracle-white);
-  color: var(--oxford-blue);
-  border: 1px solid var(--pacific-blue);
-  border-radius: 11px;
+  background: transparent !important;
+  color: var(--miracle-white) !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 8px 2px;
+  transition: border-color 0.2s ease;
+}
+
+.login-card .control-group input:focus {
+  outline: none !important;
+  border-bottom: 1px solid var(--miracle-white) !important;
+  box-shadow: none !important;
 }
 
 .login-card .control-group input::placeholder {
-  color: var(--body-text-muted);
+  color: rgba(255, 255, 255, 0.55) !important;
 }
 
 .login-error {

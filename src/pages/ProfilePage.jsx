@@ -10,7 +10,7 @@ function ProfilePage({ username, onLogout }) {
   }
 
   return (
-    <div className="login-screen profile-logout-screen">
+    <div className="profile-logout-screen login-screen">
       <div className="logout-content">
         <p className="logout-label">Signed in as</p>
         <h1 className="logout-username">{username || 'User'}</h1>

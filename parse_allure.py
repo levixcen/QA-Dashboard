@@ -5,13 +5,31 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime, timezone
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_EVIDENCE_DIR = SCRIPT_DIR / "backend" / "evidence"
-DEFAULT_JSON_OUT = SCRIPT_DIR / "public" / "dashboard_data.json"
+# Canonical layout (must match database.py / main.py):
+#   project/
+#     qa_dashboard.db
+#     backend/
+#       database.py
+#       main.py
+#       evidence/
+#       parse_allure.py   (or at project root)
+#
+# Resolve paths from wherever this script lives so a mis-run never
+# writes to a different database than the API reads.
+_HERE = Path(__file__).resolve().parent
+if (_HERE / "database.py").exists():
+    BACKEND_DIR = _HERE
+    PROJECT_ROOT = _HERE.parent
+else:
+    BACKEND_DIR = _HERE / "backend"
+    PROJECT_ROOT = _HERE
+
+DEFAULT_DB = PROJECT_ROOT / "qa_dashboard.db"
+DEFAULT_EVIDENCE_DIR = BACKEND_DIR / "evidence"
+DEFAULT_JSON_OUT = PROJECT_ROOT / "public" / "dashboard_data.json"
 
 SEVERITY_LEVELS = ["critical", "high", "medium", "low", "normal"]
 ALLOWED_EVIDENCE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
-
 
 MODULE_MAP = {
     "test_login": "Login",
@@ -58,10 +76,6 @@ def get_param(parameters, name, default=""):
 
 
 def normalize_severity(raw: str) -> str:
-    """Allure's built-in severity label is normally one of blocker/critical/
-    normal/minor/trivial. We fold that down to the four levels the dashboard
-    surfaces (critical/high/medium/low), defaulting anything unset or
-    unrecognized to 'normal' so it doesn't inflate the badge counts."""
     key = (raw or "").strip().lower()
     mapping = {
         "blocker": "critical",
@@ -140,16 +154,10 @@ def init_db(db_path: Path):
             FOREIGN KEY (test_uuid) REFERENCES test_results (uuid)
         )
     """)
-
-    # Migration path for databases created before the severity column
-    # existed. CREATE TABLE IF NOT EXISTS above is a no-op on an existing
-    # table, so a plain ALTER TABLE is needed to backfill it. Guarded
-    # because SQLite errors if the column is already there.
     try:
         conn.execute("ALTER TABLE test_results ADD COLUMN severity TEXT")
     except sqlite3.OperationalError:
         pass
-
     conn.commit()
     return conn
 
@@ -210,10 +218,6 @@ def compute_module_summary(conn: sqlite3.Connection):
 
 
 def compute_overall_summary(conn: sqlite3.Connection):
-    """Aggregate pass/fail counts and defect severity across every module,
-    computed from raw counts rather than averaged percentages so the
-    dashboard's headline numbers stay accurate regardless of how test
-    volume varies module to module."""
     cur = conn.cursor()
     cur.execute("SELECT status, COUNT(*) FROM test_results GROUP BY status")
     counts = dict(cur.fetchall())
@@ -338,8 +342,8 @@ def parse(input_dir: Path, db_path: Path, evidence_dir: Path, json_out: Path = N
     conn.commit()
 
     print(f"\nParsed {inserted} test results from {input_dir}")
-    print(f"Database: {db_path}")
-    print(f"Evidence folder: {evidence_dir}")
+    print(f"Database: {db_path.resolve()}")
+    print(f"Evidence folder: {evidence_dir.resolve()}")
     if missing_screenshots:
         print(f"Warning: {missing_screenshots} attachment(s) referenced in result JSON were not found on disk.")
     if auto_added_suites:
@@ -362,9 +366,9 @@ def parse(input_dir: Path, db_path: Path, evidence_dir: Path, json_out: Path = N
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parse Allure results into the QA dashboard database.")
     parser.add_argument("--input", required=True, help="Path to Mario's allure-results folder")
-    parser.add_argument("--db", default=str(SCRIPT_DIR / "qa_dashboard.db"), help="Output SQLite file")
+    parser.add_argument("--db", default=str(DEFAULT_DB), help="Output SQLite file (must match database.py)")
     parser.add_argument("--evidence", default=str(DEFAULT_EVIDENCE_DIR), help="Output folder for copied screenshots")
-    parser.add_argument("--json-out", default=str(DEFAULT_JSON_OUT), help="Where to write the JSON the dashboard reads")
+    parser.add_argument("--json-out", default=str(DEFAULT_JSON_OUT), help="Legacy JSON export path")
     args = parser.parse_args()
 
     parse(Path(args.input), Path(args.db), Path(args.evidence), Path(args.json_out))

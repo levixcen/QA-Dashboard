@@ -7,7 +7,6 @@ import ModulesPage from './pages/FeaturesPage';
 import ProjectsPage from './pages/ProjectsPage';
 import DefectsPage from './pages/DefectsPage';
 import TrendsPage from './pages/TrendsPage';
-import TasksPage from './pages/TasksPage';
 import ProfilePage from './pages/ProfilePage';
 import { isAuthenticated, getUsername, logout, authFetch } from './utils/auth';
 import { PeriodProvider, usePeriod } from './context/PeriodContext';
@@ -103,7 +102,7 @@ function AppContent() {
     <div className="app">
       <Sidebar page={page} setPage={setPage} />
 
-      <div className="main-content">
+      <div className={`main-content ${page === 'profile' ? 'main-content-full' : ''}`}>
         {page === 'dashboard' && (
           <DashboardPage
             modules={modules}
@@ -124,7 +123,6 @@ function AppContent() {
         {page === 'projects' && <ProjectsPage username={username} />}
         {page === 'defects' && <DefectsPage username={username} />}
         {page === 'trends' && <TrendsPage username={username} />}
-        {page === 'tasks' && <TasksPage username={username} />}
         {page === 'profile' && (
           <ProfilePage username={username} onLogout={handleLogout} />
         )}

@@ -3,6 +3,8 @@ import { authFetch } from '../utils/auth';
 import { usePeriod } from '../context/PeriodContext';
 
 const IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|webp)$/i;
+const SEVERITY_OPTIONS = ['critical', 'high', 'medium', 'low'];
+const FAILING_STATUSES = ['failed', 'broken'];
 
 function EvidenceImage({ url, name }) {
   const [src, setSrc] = useState(null);
@@ -32,12 +34,73 @@ function EvidenceImage({ url, name }) {
   );
 }
 
+function RaiseDefectForm({ test, moduleName, onRaised, onCancel }) {
+  const [severity, setSeverity] = useState(SEVERITY_OPTIONS.includes(test.severity) ? test.severity : 'medium');
+  const [owner, setOwner] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function submit() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await authFetch('/api/defects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_ref: test.uuid,
+          severity,
+          module: moduleName,
+          owner: owner.trim() || null,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'Failed to raise defect');
+      }
+      const created = await res.json();
+      onRaised(created);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="module-meta-form">
+      <label className="module-meta-field">
+        <span>Severity</span>
+        <select value={severity} onChange={e => setSeverity(e.target.value)}>
+          {SEVERITY_OPTIONS.map(s => (
+            <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>
+          ))}
+        </select>
+      </label>
+      <label className="module-meta-field">
+        <span>Owner</span>
+        <input value={owner} onChange={e => setOwner(e.target.value)} placeholder="Optional" />
+      </label>
+      {error && <div className="module-meta-error">{error}</div>}
+      <div className="module-meta-actions">
+        <button type="button" className="module-meta-save" onClick={submit} disabled={saving}>
+          {saving ? 'Raising...' : 'Raise Defect'}
+        </button>
+        <button type="button" className="module-meta-cancel" onClick={onCancel} disabled={saving}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ModuleTestsModal({ moduleName, onClose }) {
   const { period } = usePeriod();
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedUuid, setExpandedUuid] = useState(null);
+  const [raisingUuid, setRaisingUuid] = useState(null);
 
   useEffect(() => {
     const query = period ? `?month=${period}` : '';
@@ -60,6 +123,15 @@ function ModuleTestsModal({ moduleName, onClose }) {
     setExpandedUuid(current => (current === uuid ? null : uuid));
   }
 
+  function handleDefectRaised(testUuid, defect) {
+    setTests(prev =>
+      prev.map(t =>
+        t.uuid === testUuid ? { ...t, defect: { code: defect.defect_code } } : t
+      )
+    );
+    setRaisingUuid(null);
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -79,6 +151,7 @@ function ModuleTestsModal({ moduleName, onClose }) {
           {!loading && !error && tests.map(t => {
             const images = t.attachments.filter(a => IMAGE_EXTENSIONS.test(a.url));
             const isExpanded = expandedUuid === t.uuid;
+            const isFailing = FAILING_STATUSES.includes(t.status);
 
             return (
               <div key={t.uuid} className="test-row-thin">
@@ -105,10 +178,33 @@ function ModuleTestsModal({ moduleName, onClose }) {
                       </svg>
                     </span>
                   )}
+
+                  {isFailing && (
+                    t.defect ? (
+                      <span className="raised-defect-label">Defect {t.defect.code} raised</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="raise-defect-trigger"
+                        onClick={() => setRaisingUuid(raisingUuid === t.uuid ? null : t.uuid)}
+                      >
+                        Raise defect
+                      </button>
+                    )
+                  )}
                 </div>
 
                 {t.error_message && (
                   <p className="test-row-error">{t.error_message}</p>
+                )}
+
+                {raisingUuid === t.uuid && (
+                  <RaiseDefectForm
+                    test={t}
+                    moduleName={moduleName}
+                    onRaised={defect => handleDefectRaised(t.uuid, defect)}
+                    onCancel={() => setRaisingUuid(null)}
+                  />
                 )}
 
                 {isExpanded && images.length > 0 && (

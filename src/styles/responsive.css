@@ -8,7 +8,6 @@
   .dashboard-layout { grid-template-columns: 1fr; }
   .board { grid-template-columns: 1fr; }
   .insights-grid { grid-template-columns: 1fr; }
-  .login-screen { grid-template-columns: 1fr; }
   .login-right { display: none; }
   .left-col { align-items: stretch; }
   .overall { margin: 0 auto; }
@@ -31,7 +30,7 @@
     bottom: 0;
     top: auto;
     z-index: 10;
-    background: linear-gradient(90deg, #02013C 0%, #031a4a 50%, #0c4a8a 100%);
+    background: linear-gradient(90deg, #02013c 0%, #0c4a8a 55%, #04bbe4 100%);
   }
 
   .sidebar-nav {

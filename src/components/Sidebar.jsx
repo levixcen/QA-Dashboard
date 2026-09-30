@@ -104,18 +104,6 @@ function Sidebar({ page, setPage }) {
           </svg>
           <span className={`sidebar-label ${expanded ? 'visible' : ''}`}>Trends</span>
         </div>
-
-        <div
-          className={`sidebar-icon ${page === 'tasks' ? 'active' : ''}`}
-          onClick={() => setPage('tasks')}
-          title="Tasks"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <path d="M9 12l2 2 4-4"/>
-          </svg>
-          <span className={`sidebar-label ${expanded ? 'visible' : ''}`}>Tasks</span>
-        </div>
       </div>
 
       <div className="sidebar-footer">
