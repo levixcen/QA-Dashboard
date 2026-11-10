@@ -148,3 +148,58 @@
   color: #ffffff;
   transform: translateY(-2px);
 }
+
+/* Logo and icon chrome overrides: no border, outline or shadow on icons (this also
+   suppresses the active glow above, which is the current behaviour). Keep at the
+   end of this file so these rules win over the ones above. */
+
+.sidebar-logo-mark-img {
+  width: 78px;
+  height: 78px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
+}
+
+.sidebar.expanded .sidebar-logo-mark-img {
+  width: 84px;
+  height: 84px;
+}
+
+/* Sidebar icon: no border, outline or shadow (this also suppresses the
+   active glow declared in sidebar.css, which is the current behaviour). */
+.sidebar-icon,
+.sidebar-icon.active {
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.sidebar-icon:focus,
+.sidebar-icon:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Kill any remaining profile / sidebar chrome borders */
+.sidebar .sidebar-icon,
+.sidebar a.sidebar-icon,
+.sidebar button.sidebar-icon,
+.sidebar .sidebar-footer .sidebar-icon,
+.sidebar .sidebar-profile,
+.sidebar a[href*="profile"],
+.sidebar a[href*="Profile"] {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background-image: none;
+}
+
+.sidebar .sidebar-icon:hover,
+.sidebar .sidebar-icon.active,
+.sidebar .sidebar-icon:focus,
+.sidebar .sidebar-icon:focus-visible {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}

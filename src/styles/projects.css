@@ -1,0 +1,330 @@
+/* Projects: checklist, assignees, compact cards, detail modal */
+
+/* Project checklist */
+.project-checklist {
+  border-top: 1px solid var(--light-blue-border);
+  padding-top: 10px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.project-checklist-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pacific-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.project-checklist-count {
+  color: var(--body-text-muted);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.project-checklist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-checklist-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--body-text);
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.project-checklist-label input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--pacific-blue);
+  cursor: pointer;
+}
+
+.project-checklist-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-checklist-text.done {
+  color: var(--body-text-muted);
+  text-decoration: line-through;
+}
+
+.project-checklist-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--body-text-muted);
+  padding: 0 2px;
+}
+
+.project-checklist-remove:hover {
+  color: #C5221F;
+}
+
+.project-checklist-add {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.project-checklist-add input {
+  flex: 1;
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--light-blue-border);
+  border-radius: 8px;
+  font-family: inherit;
+  background: var(--miracle-white);
+  color: var(--body-text);
+}
+
+.project-checklist-add input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.project-checklist-add-btn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: none;
+  background: var(--pacific-blue);
+  color: var(--miracle-white);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.project-delete {
+  align-self: flex-end;
+  font-size: 12px;
+  font-weight: 700;
+  color: #C5221F;
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.project-delete:hover {
+  text-decoration: underline;
+}
+
+.module-pct-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.project-target-date {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--oxford-blue);
+  margin-top: -6px;
+}
+
+.project-tc-fields {
+  display: flex;
+  gap: 10px;
+}
+
+.project-tc-field {
+  flex: 1;
+}
+
+.project-tc-field input {
+  width: 100%;
+}
+
+/* Project checklist multi-assignees */
+.project-checklist-assignees {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--pacific-blue);
+  background: rgba(4, 187, 228, 0.08);
+  border: none;
+  border-radius: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-checklist-assignees:hover {
+  background: rgba(4, 187, 228, 0.16);
+}
+
+.project-checklist-assignees-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.project-checklist-assignees-edit input {
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--light-blue-border);
+  border-radius: 6px;
+  font-family: inherit;
+  width: 110px;
+  background: var(--miracle-white);
+  color: var(--body-text);
+}
+
+.project-checklist-add input + input {
+  flex: 0 0 110px;
+  min-width: 90px;
+}
+
+/* Compact project cards — fixed height, checklist lives in overlay */
+.project-card-compact {
+  min-height: 0;
+}
+
+.project-open-btn {
+  align-self: stretch;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pacific-blue);
+  background: rgba(4, 187, 228, 0.08);
+  border: 1px solid rgba(4, 187, 228, 0.25);
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.project-open-btn:hover {
+  background: rgba(4, 187, 228, 0.16);
+}
+
+.project-detail-modal {
+  max-width: 520px;
+}
+
+.project-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--light-blue-border);
+}
+
+.project-detail-meta .detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.project-detail-meta .detail-row > span:first-child {
+  color: var(--body-text-muted);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.project-detail-meta .detail-row > span:last-child {
+  color: var(--body-text);
+  font-weight: 500;
+  text-align: right;
+}
+
+.project-checklist-in-modal {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+/* Stacked add row so assignees never forces the card width */
+.project-checklist-add-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.project-checklist-add-stacked > input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.project-checklist-add-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.project-checklist-add-row input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--light-blue-border);
+  border-radius: 8px;
+  font-family: inherit;
+  background: var(--miracle-white);
+  color: var(--body-text);
+}
+
+.project-checklist-add-row input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+/* Assignees chip — don't grow the row */
+.project-checklist-item {
+  flex-wrap: wrap;
+}
+
+.project-checklist-assignees {
+  max-width: 140px;
+}
+
+.project-checklist-assignees-edit {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.project-checklist-assignees-edit input {
+  width: 140px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.project-checklist-due {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--body-text-muted);
+  background: rgba(4, 187, 228, 0.08);
+  padding: 1px 7px;
+  border-radius: 8px;
+  white-space: nowrap;
+  line-height: 1.3;
+}

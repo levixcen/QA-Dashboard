@@ -1,21 +1,12 @@
 import argparse
 import json
-import shutil
-import sqlite3
+import mimetypes
+import sys
 from pathlib import Path
 from datetime import datetime, timezone
 
-# Canonical layout (must match database.py / main.py):
-#   project/
-#     qa_dashboard.db
-#     backend/
-#       database.py
-#       main.py
-#       evidence/
-#       parse_allure.py   (or at project root)
-#
-# Resolve paths from wherever this script lives so a mis-run never
-# writes to a different database than the API reads.
+# Resolve the backend folder from wherever this script lives, so
+# "python parse_allure.py ..." works from the project root with no PYTHONPATH.
 _HERE = Path(__file__).resolve().parent
 if (_HERE / "database.py").exists():
     BACKEND_DIR = _HERE
@@ -23,9 +14,12 @@ if (_HERE / "database.py").exists():
 else:
     BACKEND_DIR = _HERE / "backend"
     PROJECT_ROOT = _HERE
+sys.path.insert(0, str(BACKEND_DIR))
 
-DEFAULT_DB = PROJECT_ROOT / "qa_dashboard.db"
-DEFAULT_EVIDENCE_DIR = BACKEND_DIR / "evidence"
+from timeutil import run_date_from_start_ts, now_utc  # noqa: E402
+import database  # noqa: E402  (reads DATABASE_URL)
+
+# The database now comes from the DATABASE_URL setting (see database.py).
 DEFAULT_JSON_OUT = PROJECT_ROOT / "public" / "dashboard_data.json"
 
 SEVERITY_LEVELS = ["critical", "high", "medium", "low", "normal"]
@@ -122,47 +116,13 @@ def collect_attachments(result: dict):
     return found
 
 
-def init_db(db_path: Path):
-    conn = sqlite3.connect(db_path)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS test_results (
-            uuid TEXT PRIMARY KEY,
-            name TEXT,
-            full_name TEXT,
-            status TEXT,
-            module TEXT,
-            suite TEXT,
-            epic TEXT,
-            story TEXT,
-            feature TEXT,
-            tc_id TEXT,
-            start_ts INTEGER,
-            stop_ts INTEGER,
-            duration_ms INTEGER,
-            run_date TEXT,
-            error_message TEXT,
-            severity TEXT
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS attachments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            test_uuid TEXT,
-            attachment_name TEXT,
-            file_path TEXT,
-            type TEXT,
-            FOREIGN KEY (test_uuid) REFERENCES test_results (uuid)
-        )
-    """)
-    try:
-        conn.execute("ALTER TABLE test_results ADD COLUMN severity TEXT")
-    except sqlite3.OperationalError:
-        pass
-    conn.commit()
-    return conn
+def init_db():
+    """Makes sure the schema exists, then returns a pooled connection."""
+    database.init_db()
+    return database.get_connection()
 
 
-def compute_module_summary(conn: sqlite3.Connection):
+def compute_module_summary(conn):
     cur = conn.cursor()
     cur.execute("SELECT DISTINCT module FROM test_results ORDER BY module")
     modules = [row[0] for row in cur.fetchall()]
@@ -217,7 +177,7 @@ def compute_module_summary(conn: sqlite3.Connection):
     return summary
 
 
-def compute_overall_summary(conn: sqlite3.Connection):
+def compute_overall_summary(conn):
     cur = conn.cursor()
     cur.execute("SELECT status, COUNT(*) FROM test_results GROUP BY status")
     counts = dict(cur.fetchall())
@@ -243,7 +203,7 @@ def compute_overall_summary(conn: sqlite3.Connection):
     }
 
 
-def export_dashboard_json(conn: sqlite3.Connection, out_path: Path):
+def export_dashboard_json(conn, out_path: Path):
     summary = compute_module_summary(conn)
     overall = compute_overall_summary(conn)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -251,14 +211,13 @@ def export_dashboard_json(conn: sqlite3.Connection, out_path: Path):
         json.dump({
             "modules": summary,
             "overall": overall,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": now_utc().isoformat(),
         }, f, indent=2)
     print(f"Dashboard data written to {out_path}")
 
 
-def parse(input_dir: Path, db_path: Path, evidence_dir: Path, json_out: Path = None):
-    evidence_dir.mkdir(parents=True, exist_ok=True)
-    conn = init_db(db_path)
+def parse(input_dir: Path, json_out: Path = None):
+    conn = init_db()
     cur = conn.cursor()
 
     results = load_result_files(input_dir)
@@ -288,17 +247,30 @@ def parse(input_dir: Path, db_path: Path, evidence_dir: Path, json_out: Path = N
 
         start_ts = result.get("start", 0)
         stop_ts = result.get("stop", 0)
-        run_date = ""
-        if start_ts:
-            run_date = datetime.fromtimestamp(
-                start_ts / 1000, tz=timezone.utc
-            ).strftime("%Y-%m-%d")
+        # Jakarta calendar day — matches dashboard period filters
+        run_date = run_date_from_start_ts(start_ts) if start_ts else ""
 
         cur.execute("""
-            INSERT OR REPLACE INTO test_results
+            INSERT INTO test_results
             (uuid, name, full_name, status, module, suite, epic, story,
              feature, tc_id, start_ts, stop_ts, duration_ms, run_date, error_message, severity)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (uuid) DO UPDATE SET
+                name = EXCLUDED.name,
+                full_name = EXCLUDED.full_name,
+                status = EXCLUDED.status,
+                module = EXCLUDED.module,
+                suite = EXCLUDED.suite,
+                epic = EXCLUDED.epic,
+                story = EXCLUDED.story,
+                feature = EXCLUDED.feature,
+                tc_id = EXCLUDED.tc_id,
+                start_ts = EXCLUDED.start_ts,
+                stop_ts = EXCLUDED.stop_ts,
+                duration_ms = EXCLUDED.duration_ms,
+                run_date = EXCLUDED.run_date,
+                error_message = EXCLUDED.error_message,
+                severity = EXCLUDED.severity
         """, (
             uuid,
             result.get("name", ""),
@@ -330,20 +302,25 @@ def parse(input_dir: Path, db_path: Path, evidence_dir: Path, json_out: Path = N
                 missing_screenshots += 1
                 continue
             dest_name = f"{safe_uuid}_{source_name}"
-            dest_path = evidence_dir / dest_name
-            shutil.copyfile(source_path, dest_path)
+            # Screenshots are stored in the database, so a hosted server can show them.
+            database.save_evidence(
+                cur, dest_name,
+                att.get("type") or mimetypes.guess_type(source_name)[0],
+                source_path.read_bytes(),
+            )
             cur.execute("""
                 INSERT INTO attachments (test_uuid, attachment_name, file_path, type)
                 VALUES (?, ?, ?, ?)
-            """, (uuid, att.get("name", ""), str(dest_path), att.get("type", "")))
+            """, (uuid, att.get("name", ""), dest_name, att.get("type", "")))
 
         inserted += 1
 
+    database.sync_features_from_results(conn)
     conn.commit()
 
     print(f"\nParsed {inserted} test results from {input_dir}")
-    print(f"Database: {db_path.resolve()}")
-    print(f"Evidence folder: {evidence_dir.resolve()}")
+    print("Database: PostgreSQL (DATABASE_URL)")
+    print("Screenshots: stored in the database")
     if missing_screenshots:
         print(f"Warning: {missing_screenshots} attachment(s) referenced in result JSON were not found on disk.")
     if auto_added_suites:
@@ -361,14 +338,13 @@ def parse(input_dir: Path, db_path: Path, evidence_dir: Path, json_out: Path = N
 
     export_dashboard_json(conn, Path(json_out) if json_out else DEFAULT_JSON_OUT)
     conn.close()
+    database.close_pool()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parse Allure results into the QA dashboard database.")
     parser.add_argument("--input", required=True, help="Path to Mario's allure-results folder")
-    parser.add_argument("--db", default=str(DEFAULT_DB), help="Output SQLite file (must match database.py)")
-    parser.add_argument("--evidence", default=str(DEFAULT_EVIDENCE_DIR), help="Output folder for copied screenshots")
     parser.add_argument("--json-out", default=str(DEFAULT_JSON_OUT), help="Legacy JSON export path")
     args = parser.parse_args()
 
-    parse(Path(args.input), Path(args.db), Path(args.evidence), Path(args.json_out))
+    parse(Path(args.input), Path(args.json_out))

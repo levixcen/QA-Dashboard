@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authFetch } from '../utils/auth';
+import { formatDate } from '../utils/formatDate';
 
 const SEVERITY_OPTIONS = ['critical', 'high', 'medium', 'low'];
 const STATUS_OPTIONS = ['open', 'in_progress', 'retest', 'reopened', 'closed'];
@@ -64,11 +65,17 @@ function DefectCard({ defect, selected, onToggleSelect, onEdit, onDelete, onUncl
         </div>
         <div className="detail-row">
           <span>Raised</span>
-          <span style={{ color: '#5a7a9a', fontWeight: 400 }}>{defect.raised_date || '—'}</span>
+          <span style={{ color: '#5a7a9a', fontWeight: 400 }}>{defect.raised_date ? formatDate(defect.raised_date) : '—'}</span>
         </div>
+        {defect.created_at && (
+          <div className="detail-row">
+            <span>Added</span>
+            <span style={{ color: '#5a7a9a', fontWeight: 400 }}>{formatDate(defect.created_at)}</span>
+          </div>
+        )}
         <div className="detail-row">
           <span>Due</span>
-          <span style={{ color: '#5a7a9a', fontWeight: 400 }}>{defect.eta || '—'}</span>
+          <span style={{ color: '#5a7a9a', fontWeight: 400 }}>{defect.eta ? formatDate(defect.eta) : '—'}</span>
         </div>
         <div className="detail-row">
           <span>Impacted TCs</span>
@@ -118,11 +125,7 @@ function ClusterFolder({
 
   return (
     <div className={`defect-folder ${expanded ? 'expanded' : ''}`}>
-      <div
-        className="defect-folder-header"
-        style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flexWrap: 'wrap' }}
-        onClick={onToggle}
-      >
+      <div className="defect-folder-header" onClick={onToggle}>
         <input
           type="checkbox"
           checked={allSelected}
@@ -130,13 +133,14 @@ function ClusterFolder({
           onClick={e => e.stopPropagation()}
           title="Select all in this folder"
         />
-        <span className="defect-folder-chevron">{expanded ? '▾' : '▸'}</span>
+        <span className="defect-folder-chevron" aria-hidden="true">{expanded ? '▾' : '▸'}</span>
         <span className="defect-folder-icon" aria-hidden="true"><FolderIcon /></span>
 
         {isRenaming ? (
           <span
+            className="defect-folder-title"
             onClick={e => e.stopPropagation()}
-            style={{ display: 'flex', gap: 6, alignItems: 'center' }}
+            style={{ display: 'flex', gap: 6, alignItems: 'center', flex: 1, minWidth: 0 }}
           >
             <input
               autoFocus
@@ -169,9 +173,8 @@ function ClusterFolder({
 
         <button
           type="button"
-          className="archive"
+          className="archive defect-folder-ungroup"
           onClick={e => { e.stopPropagation(); onUngroup(); }}
-          style={{ marginLeft: 'auto' }}
         >
           Ungroup folder
         </button>

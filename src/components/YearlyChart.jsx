@@ -67,9 +67,6 @@ function YearlyChart({ year: yearProp, months: monthsProp, period: periodProp, o
                 <title>{`${MONTHS[i]}: ${m.total || 0} run, ${m.passed || 0} passed, ${m.failed || 0} failed`}</title>
                 <rect x={x} y={baseY - totalH} width={BAR_W} height={totalH} rx="2" fill="#C5221F" opacity={selected ? 1 : 0.8} />
                 <rect x={x} y={baseY - passedH} width={BAR_W} height={passedH} rx="2" fill="#04BBE4" opacity={selected ? 1 : 0.85} />
-                {selected && (
-                  <rect x={x - 2} y={baseY - totalH - 2} width={BAR_W + 4} height={totalH + 4} rx="3" fill="none" stroke="#02013C" strokeWidth="1.5" />
-                )}
                 <text x={x + BAR_W / 2} y={H - 6} textAnchor="middle" fontSize="10" fill="currentColor">
                   {MONTHS[i]}
                 </text>

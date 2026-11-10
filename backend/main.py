@@ -1,4 +1,3 @@
-
 import os
 import re
 import time
@@ -8,27 +7,51 @@ from pathlib import Path
 from typing import Optional, List
 from datetime import datetime, timezone
 
+from timeutil import now_iso, today_jakarta, period_jakarta
+
 from fastapi import FastAPI, HTTPException, Depends, Header, Request, Query, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
-from database import get_connection, init_db, seed_if_empty
+from database import get_connection, init_db, seed_if_empty, save_evidence, load_evidence, delete_evidence
 import reports
 from auth import verify_password, hash_password, create_token, decode_token
+from google_auth import google_configured, verify_google_id_token, email_allowed
 
 app = FastAPI()
 
+# Comma separated list of website addresses allowed to call this API.
+# Local default; on the host set QA_DASHBOARD_CORS_ORIGINS to the Vercel address.
+CORS_ORIGINS = [
+    o.strip().rstrip("/")
+    for o in os.environ.get("QA_DASHBOARD_CORS_ORIGINS", "http://localhost:5173").split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Images live in the database (table evidence_files). This folder is only read
+# as a fallback for files saved before the move, and is never created here.
 EVIDENCE_DIR = Path(__file__).parent / "evidence"
-EVIDENCE_DIR.mkdir(exist_ok=True)
+
+
+def _remove_evidence_file(filename):
+    """Deletes one image from the database and from the old folder, if present."""
+    try:
+        delete_evidence(filename)
+    except Exception:
+        pass
+    try:
+        (EVIDENCE_DIR / filename).unlink(missing_ok=True)
+    except OSError:
+        pass
 
 DUMMY_HASH = hash_password("timing-equalizer")
 LOGIN_WINDOW_SECONDS = 300
@@ -126,7 +149,7 @@ def _severity_for_defect(raw):
 def _next_defect_code(cur):
     # Based on the highest existing id, not the row count, so deleting a
     # defect can never cause a duplicate code (defect_code is UNIQUE).
-    cur.execute("SELECT COALESCE(MAX(id), 0) + 1 AS n FROM defects")
+    cur.execute("SELECT nextval('defect_code_seq') AS n")
     n = cur.fetchone()["n"]
     return f"DEF-{n:03d}"
 
@@ -159,6 +182,12 @@ def _normalize_assignees(raw):
     return ", ".join(names) if names else None
 
 
+def _attach_results(cur, row):
+    """Adds live result totals (from the linked feature) to a project row."""
+    row["results"] = reports.project_results(cur, row.get("module"), row.get("tc_total") or 0)
+    return row
+
+
 def _resolve_feature(cur, name):
     """Returns the registry name to store on a defect. Matching ignores case
     and surrounding spaces, so typing "support" reuses "Support". A name that
@@ -174,7 +203,7 @@ def _resolve_feature(cur, name):
         if row["archived"]:
             raise HTTPException(status_code=400, detail=f'Feature "{row["name"]}" is archived')
         return row["name"]
-    cur.execute("INSERT INTO features (name, archived) VALUES (?, 0)", (name,))
+    cur.execute("INSERT INTO features (name, archived) VALUES (?, 0) ON CONFLICT (name) DO NOTHING", (name,))
     return name
 
 
@@ -184,6 +213,12 @@ def _validate_close(previous_status, new_status):
             status_code=400,
             detail="Status can only be Closed after Retest is completed and validated by the business user.",
         )
+
+
+@app.on_event("shutdown")
+def shutdown():
+    from database import close_pool
+    close_pool()
 
 
 @app.on_event("startup")
@@ -239,6 +274,8 @@ class ChecklistItemCreate(BaseModel):
     text: str
     # Comma-separated names, e.g. "Dara, Mario". Optional.
     assignees: Optional[str] = None
+    # Optional target/due day (YYYY-MM-DD, Jakarta calendar).
+    due_date: Optional[str] = None
 
 
 class ChecklistItemUpdate(BaseModel):
@@ -246,6 +283,7 @@ class ChecklistItemUpdate(BaseModel):
     done: Optional[bool] = None
     text: Optional[str] = None
     assignees: Optional[str] = None
+    due_date: Optional[str] = None
 
 
 class ProjectUpdate(BaseModel):
@@ -335,8 +373,8 @@ def signup(payload: SignupRequest, request: Request):
 
     if len(email) > 254 or not EMAIL_PATTERN.match(email):
         raise HTTPException(status_code=400, detail="Enter a valid email address")
-    if ALLOWED_SIGNUP_DOMAINS and email.rsplit("@", 1)[1] not in ALLOWED_SIGNUP_DOMAINS:
-        raise HTTPException(status_code=403, detail="Sign up is limited to approved company email domains")
+    if not email_allowed(email):
+        raise HTTPException(status_code=403, detail="Sign up is limited to approved company email addresses")
     if len(password) < PASSWORD_MIN:
         raise HTTPException(status_code=400, detail=f"Password must be at least {PASSWORD_MIN} characters")
     if len(password.encode("utf-8")) > PASSWORD_MAX_BYTES:
@@ -395,6 +433,60 @@ def login(payload: LoginRequest, request: Request):
     return {"token": token, "username": user["username"]}
 
 
+class GoogleLoginRequest(BaseModel):
+    credential: str  # Google Identity Services ID token (JWT)
+
+
+@app.post("/api/auth/google")
+def login_with_google(payload: GoogleLoginRequest):
+    """Exchange a Google ID token for a dashboard JWT.
+
+    Any verified Google account is accepted unless QA_DASHBOARD_ALLOWED_DOMAINS
+    is set. OAuth-only users get an unusable password hash so password login
+    cannot be used for that account unless they later set a password.
+    """
+    if not google_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="Google sign-in is not configured (set QA_DASHBOARD_GOOGLE_CLIENT_ID)",
+        )
+    try:
+        info = verify_google_id_token(payload.credential)
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+    email = info["email"]
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT username FROM users WHERE lower(username) = ?", (email,))
+        row = cur.fetchone()
+        if not row:
+            # Unusable password — bcrypt of random; password login will never match
+            oauth_marker = hash_password(uuid.uuid4().hex + uuid.uuid4().hex)
+            cur.execute(
+                "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+                (email, oauth_marker),
+            )
+            conn.commit()
+            username = email
+        else:
+            username = row["username"]
+    finally:
+        conn.close()
+
+    return {"token": create_token(username), "username": username}
+
+
+@app.get("/api/auth/google/config")
+def google_auth_config():
+    """Public: whether the Google button should be shown, and which client ID."""
+    return {
+        "enabled": google_configured(),
+        "client_id": os.environ.get("QA_DASHBOARD_GOOGLE_CLIENT_ID", "").strip() or None,
+    }
+
+
 @app.get("/api/auth/me")
 def me(username: str = Depends(get_current_user)):
     return {"username": username}
@@ -431,12 +523,12 @@ def project_velocity(username: str = Depends(get_current_user)):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
-        "SELECT id, name, module, owner, target_date, created_at, pct FROM projects "
+        "SELECT id, name, module, owner, target_date, created_at, pct, tc_done, tc_failed FROM projects "
         "WHERE COALESCE(archived, 0) = 0 ORDER BY id"
     )
     projects = [dict(r) for r in cur.fetchall()]
 
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = today_jakarta()
     today_d = datetime.strptime(today, "%Y-%m-%d")
 
     def elapsed_pct(date_str, start_d, end_d):
@@ -534,6 +626,9 @@ def project_velocity(username: str = Depends(get_current_user)):
             "items_total": items_total,
             "items_done": items_done,
             "open_defects": open_defects,
+            "tc_done": p.get("tc_done") or 0,
+            "tc_failed": p.get("tc_failed") or 0,
+            "results": reports.project_results(cur, p.get("module"), 0),
             "pace_pct": pace_pct,
             "days_left": days_left,
             "gap": gap,
@@ -561,10 +656,14 @@ def create_feature(payload: FeatureCreate, username: str = Depends(get_current_u
         conn.close()
         raise HTTPException(status_code=409, detail=f'"{name}" already exists')
 
-    cur.execute("INSERT INTO features (name, archived) VALUES (?, 0)", (name,))
+    stamp = now_iso()
+    cur.execute(
+        "INSERT INTO features (name, archived, created_at, updated_at) VALUES (?, 0, ?, ?)",
+        (name, stamp, stamp),
+    )
     conn.commit()
     conn.close()
-    return {"name": name, "archived": False}
+    return {"name": name, "archived": False, "created_at": stamp, "updated_at": stamp}
 
 
 @app.patch("/api/features/{name}/archive")
@@ -629,7 +728,7 @@ def delete_feature(name: str, username: str = Depends(get_current_user)):
 
     for filename in evidence_files:
         try:
-            (EVIDENCE_DIR / filename).unlink(missing_ok=True)
+            _remove_evidence_file(filename)
         except OSError:
             pass
 
@@ -675,7 +774,7 @@ async def ingest_feature_entry(
     if existing_feature:
         name = existing_feature["name"]
     else:
-        cur.execute("INSERT INTO features (name, archived) VALUES (?, 0)", (name,))
+        cur.execute("INSERT INTO features (name, archived) VALUES (?, 0) ON CONFLICT (name) DO NOTHING", (name,))
 
     evidence_filename = None
     evidence_type = None
@@ -696,17 +795,23 @@ async def ingest_feature_entry(
             raise HTTPException(status_code=400, detail="Evidence image must be 2MB or smaller")
 
         evidence_filename = f"{uuid.uuid4().hex}{ext}"
-        (EVIDENCE_DIR / evidence_filename).write_bytes(contents)
+        save_evidence(cur, evidence_filename, file.content_type, contents)
         evidence_type = file.content_type
         evidence_size = len(contents)
 
+    entry_date = today_jakarta()
+    stamp = now_iso()
+    # Keep period in sync with the Jakarta entry day when caller sent current month
+    # or when period is omitted in future; still respect explicit period.
     cur.execute("""
         INSERT INTO manual_entries
-            (feature_name, period, status, description, severity, evidence_path, evidence_type, evidence_size)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (feature_name, period, status, description, severity, evidence_path,
+             evidence_type, evidence_size, entry_date, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         name, period, status, description or None, severity,
         evidence_filename, evidence_type, evidence_size,
+        entry_date, stamp, stamp,
     ))
     conn.commit()
     new_id = cur.lastrowid
@@ -735,19 +840,20 @@ def list_projects(
     archived_flag = 1 if archived else 0
     if month:
         cur.execute(
-            "SELECT * FROM projects WHERE substr(target_date, 1, 7) = ? AND COALESCE(archived, 0) = ?",
+            "SELECT * FROM projects WHERE substr(target_date, 1, 7) = ? AND COALESCE(archived, 0) = ? ORDER BY id",
             (month, archived_flag),
         )
     else:
-        cur.execute("SELECT * FROM projects WHERE COALESCE(archived, 0) = ?", (archived_flag,))
+        cur.execute("SELECT * FROM projects WHERE COALESCE(archived, 0) = ? ORDER BY id", (archived_flag,))
     rows = [dict(r) for r in cur.fetchall()]
 
     for row in rows:
         cur.execute(
-            "SELECT id, text, done, evidence_path, evidence_type, assignees FROM project_checklist WHERE project_id = ? ORDER BY id",
+            "SELECT id, text, done, evidence_path, evidence_type, assignees, due_date, created_at, completed_at FROM project_checklist WHERE project_id = ? ORDER BY id",
             (row["id"],),
         )
         row["checklist"] = [dict(c) for c in cur.fetchall()]
+        _attach_results(cur, row)
 
     conn.close()
     return rows
@@ -763,15 +869,17 @@ def create_project(payload: ProjectCreate, username: str = Depends(get_current_u
 
     status = payload.status or "Not Started"
     owner = _normalize_assignees(payload.owner)
-    created_at = datetime.now().strftime("%Y-%m-%d")
+    created_at = today_jakarta()
+    stamp = now_iso()
     cur.execute("""
         INSERT INTO projects
-            (name, module, owner, status, color, pct, tc_done, tc_failed, tc_total, target_date, note, created_at)
-        VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
+            (name, module, owner, status, color, pct, tc_done, tc_failed, tc_total,
+             target_date, note, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)
     """, (
         payload.name.strip(), payload.module, owner, status,
         color_for_status(status), payload.tc_done, payload.tc_failed, payload.tc_total,
-        payload.target_date, payload.note, created_at,
+        payload.target_date, payload.note, created_at, stamp,
     ))
     conn.commit()
     new_id = cur.lastrowid
@@ -781,6 +889,7 @@ def create_project(payload: ProjectCreate, username: str = Depends(get_current_u
     cur.execute("SELECT * FROM projects WHERE id = ?", (new_id,))
     row = dict(cur.fetchone())
     row["checklist"] = []
+    _attach_results(cur, row)
     conn.close()
     return row
 
@@ -819,6 +928,7 @@ def update_project(
             fields["archived"] = 1 if fields["archived"] else 0
 
         if fields:
+            fields["updated_at"] = now_iso()
             assignments = ", ".join(f"{col} = ?" for col in fields)
             cur.execute(
                 f"UPDATE projects SET {assignments} WHERE id = ?",
@@ -829,10 +939,11 @@ def update_project(
         cur.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
         row = dict(cur.fetchone())
         cur.execute(
-            "SELECT id, text, done, evidence_path, evidence_type, assignees FROM project_checklist WHERE project_id = ? ORDER BY id",
+            "SELECT id, text, done, evidence_path, evidence_type, assignees, due_date, created_at, completed_at FROM project_checklist WHERE project_id = ? ORDER BY id",
             (project_id,),
         )
         row["checklist"] = [dict(c) for c in cur.fetchall()]
+        _attach_results(cur, row)
         return row
     finally:
         conn.close()
@@ -872,10 +983,11 @@ def update_project_testcases(
     cur.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
     row = dict(cur.fetchone())
     cur.execute(
-        "SELECT id, text, done, evidence_path, evidence_type, assignees FROM project_checklist WHERE project_id = ? ORDER BY id",
+        "SELECT id, text, done, evidence_path, evidence_type, assignees, due_date, created_at, completed_at FROM project_checklist WHERE project_id = ? ORDER BY id",
         (project_id,),
     )
     row["checklist"] = [dict(c) for c in cur.fetchall()]
+    _attach_results(cur, row)
     conn.close()
     return row
 
@@ -904,10 +1016,11 @@ def update_project_status(
     cur.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
     row = dict(cur.fetchone())
     cur.execute(
-        "SELECT id, text, done, evidence_path, evidence_type, assignees FROM project_checklist WHERE project_id = ? ORDER BY id",
+        "SELECT id, text, done, evidence_path, evidence_type, assignees, due_date, created_at, completed_at FROM project_checklist WHERE project_id = ? ORDER BY id",
         (project_id,),
     )
     row["checklist"] = [dict(c) for c in cur.fetchall()]
+    _attach_results(cur, row)
     conn.close()
     return row
 
@@ -935,7 +1048,7 @@ def delete_project(project_id: int, username: str = Depends(get_current_user)):
 
     for filename in evidence_files:
         try:
-            (EVIDENCE_DIR / filename).unlink(missing_ok=True)
+            _remove_evidence_file(filename)
         except OSError:
             pass
 
@@ -960,9 +1073,15 @@ def add_checklist_item(
         raise HTTPException(status_code=404, detail="Project not found")
 
     assignees = _normalize_assignees(payload.assignees)
+    due_date = payload.due_date or None
+    if due_date:
+        _check_date(due_date, "due_date")
+    stamp = now_iso()
     cur.execute(
-        "INSERT INTO project_checklist (project_id, text, done, assignees) VALUES (?, ?, 0, ?)",
-        (project_id, payload.text.strip(), assignees),
+        """INSERT INTO project_checklist
+           (project_id, text, done, assignees, due_date, created_at, updated_at)
+           VALUES (?, ?, 0, ?, ?, ?, ?)""",
+        (project_id, payload.text.strip(), assignees, due_date, stamp, stamp),
     )
     conn.commit()
     new_id = cur.lastrowid
@@ -971,7 +1090,7 @@ def add_checklist_item(
     conn.commit()
 
     cur.execute(
-        "SELECT id, text, done, evidence_path, evidence_type, assignees FROM project_checklist WHERE id = ?",
+        "SELECT id, text, done, evidence_path, evidence_type, assignees, due_date, created_at, completed_at FROM project_checklist WHERE id = ?",
         (new_id,),
     )
     row = dict(cur.fetchone())
@@ -998,7 +1117,7 @@ def update_checklist_item(
     fields = payload.model_dump(exclude_unset=True)
     if not fields:
         cur.execute(
-            "SELECT id, text, done, evidence_path, evidence_type, assignees FROM project_checklist WHERE id = ?",
+            "SELECT id, text, done, evidence_path, evidence_type, assignees, due_date, created_at, completed_at FROM project_checklist WHERE id = ?",
             (item_id,),
         )
         row = dict(cur.fetchone())
@@ -1013,13 +1132,17 @@ def update_checklist_item(
             raise HTTPException(status_code=400, detail="Checklist text is required")
     if "assignees" in fields:
         fields["assignees"] = _normalize_assignees(fields["assignees"])
+    if "due_date" in fields:
+        fields["due_date"] = fields["due_date"] or None
+        _check_date(fields["due_date"], "due_date")
     if "done" in fields:
         fields["done"] = 1 if fields["done"] else 0
         if fields["done"] and not existing["done"]:
-            fields["completed_at"] = datetime.now().strftime("%Y-%m-%d")
+            fields["completed_at"] = today_jakarta()
         elif not fields["done"] and existing["done"]:
             fields["completed_at"] = None
 
+    fields["updated_at"] = now_iso()
     assignments = ", ".join(f"{col} = ?" for col in fields)
     cur.execute(
         f"UPDATE project_checklist SET {assignments} WHERE id = ?",
@@ -1033,7 +1156,7 @@ def update_checklist_item(
         conn.commit()
 
     cur.execute(
-        "SELECT id, text, done, evidence_path, evidence_type, assignees FROM project_checklist WHERE id = ?",
+        "SELECT id, text, done, evidence_path, evidence_type, assignees, due_date, created_at, completed_at FROM project_checklist WHERE id = ?",
         (item_id,),
     )
     row = dict(cur.fetchone())
@@ -1072,7 +1195,7 @@ async def upload_checklist_evidence(
 
     old_filename = existing["evidence_path"]
     evidence_filename = f"{uuid.uuid4().hex}{ext}"
-    (EVIDENCE_DIR / evidence_filename).write_bytes(contents)
+    save_evidence(cur, evidence_filename, file.content_type, contents)
 
     cur.execute(
         "UPDATE project_checklist SET evidence_path = ?, evidence_type = ? WHERE id = ?",
@@ -1082,12 +1205,12 @@ async def upload_checklist_evidence(
 
     if old_filename:
         try:
-            (EVIDENCE_DIR / old_filename).unlink(missing_ok=True)
+            _remove_evidence_file(old_filename)
         except OSError:
             pass
 
     cur.execute(
-        "SELECT id, text, done, evidence_path, evidence_type, assignees FROM project_checklist WHERE id = ?",
+        "SELECT id, text, done, evidence_path, evidence_type, assignees, due_date, created_at, completed_at FROM project_checklist WHERE id = ?",
         (item_id,),
     )
     row = dict(cur.fetchone())
@@ -1115,7 +1238,7 @@ def delete_checklist_item(item_id: int, username: str = Depends(get_current_user
 
     if existing["evidence_path"]:
         try:
-            (EVIDENCE_DIR / existing["evidence_path"]).unlink(missing_ok=True)
+            _remove_evidence_file(existing["evidence_path"])
         except OSError:
             pass
 
@@ -1129,7 +1252,9 @@ def list_features(username: str = Depends(get_current_user)):
     conn = get_connection()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT name, archived FROM features ORDER BY name COLLATE NOCASE")
+        cur.execute(
+            "SELECT name, archived, created_at, updated_at FROM features ORDER BY lower(name), name"
+        )
         features = cur.fetchall()
         cur.execute(
             """SELECT module, COUNT(*) AS open_defects
@@ -1143,6 +1268,8 @@ def list_features(username: str = Depends(get_current_user)):
                 "name": r["name"],
                 "archived": bool(r["archived"]),
                 "open_defects": open_by_module.get(r["name"], 0),
+                "created_at": r["created_at"],
+                "updated_at": r["updated_at"],
             }
             for r in features
         ]
@@ -1208,7 +1335,7 @@ def create_defect(payload: DefectCreate, username: str = Depends(get_current_use
 
         module = _resolve_feature(cur, module)
         code = _next_defect_code(cur)
-        now = datetime.now().isoformat(timespec="seconds")
+        now = now_iso()
         raised = payload.raised_date or now[:10]
         impacted = payload.impacted_tc_count
         if impacted is None:
@@ -1275,6 +1402,7 @@ def update_defect(
             fields["module"] = module
 
         if fields:
+            fields["updated_at"] = now_iso()
             assignments = ", ".join(f"{col} = ?" for col in fields)
             cur.execute(
                 f"UPDATE defects SET {assignments} WHERE id = ?",
@@ -1372,7 +1500,7 @@ def create_defects_from_failures(
 
         created = 0
         skipped = 0
-        now = datetime.now().isoformat(timespec="seconds")
+        now = now_iso()
         for row in candidates:
             module = (row["module"] or "").strip()
             cur.execute("SELECT archived FROM features WHERE name = ?", (module,))
@@ -1480,19 +1608,43 @@ def list_module_tests(
 ):
     conn = get_connection()
     cur = conn.cursor()
+    # Same "latest per logical test" rule as the executions view / dashboard.
     if month:
         cur.execute("""
-            SELECT uuid, name, status, error_message, run_date, severity
-            FROM test_results
-            WHERE module = ? AND substr(run_date, 1, 7) = ?
-            ORDER BY name
+            SELECT t.uuid, t.name, t.status, t.error_message, t.run_date, t.severity
+            FROM test_results t
+            WHERE t.module = ?
+              AND substr(t.run_date, 1, 7) = ?
+              AND t.uuid = (
+                  SELECT t2.uuid
+                  FROM test_results t2
+                  WHERE COALESCE(t2.module, '') = COALESCE(t.module, '')
+                    AND COALESCE(NULLIF(t2.full_name, ''), t2.name, '')
+                      = COALESCE(NULLIF(t.full_name, ''), t.name, '')
+                    AND substr(COALESCE(t2.run_date, ''), 1, 7)
+                      = substr(COALESCE(t.run_date, ''), 1, 7)
+                  ORDER BY COALESCE(t2.start_ts, 0) DESC, t2.uuid DESC
+                  LIMIT 1
+              )
+            ORDER BY t.name, t.run_date, t.uuid
         """, (module_name, month))
     else:
         cur.execute("""
-            SELECT uuid, name, status, error_message, run_date, severity
-            FROM test_results
-            WHERE module = ?
-            ORDER BY name
+            SELECT t.uuid, t.name, t.status, t.error_message, t.run_date, t.severity
+            FROM test_results t
+            WHERE t.module = ?
+              AND t.uuid = (
+                  SELECT t2.uuid
+                  FROM test_results t2
+                  WHERE COALESCE(t2.module, '') = COALESCE(t.module, '')
+                    AND COALESCE(NULLIF(t2.full_name, ''), t2.name, '')
+                      = COALESCE(NULLIF(t.full_name, ''), t.name, '')
+                    AND substr(COALESCE(t2.run_date, ''), 1, 7)
+                      = substr(COALESCE(t.run_date, ''), 1, 7)
+                  ORDER BY COALESCE(t2.start_ts, 0) DESC, t2.uuid DESC
+                  LIMIT 1
+              )
+            ORDER BY t.name, t.run_date, t.uuid
         """, (module_name,))
     tests = [dict(r) for r in cur.fetchall()]
 
@@ -1513,14 +1665,16 @@ def list_module_tests(
 
     if month:
         cur.execute("""
-            SELECT id, status, description, period, evidence_path, evidence_type, severity
+            SELECT id, status, description, period, entry_date, evidence_path, evidence_type, severity,
+                   created_at, updated_at
             FROM manual_entries
-            WHERE feature_name = ? AND period = ?
+            WHERE feature_name = ? AND COALESCE(substr(entry_date, 1, 7), period) = ?
             ORDER BY id
         """, (module_name, month))
     else:
         cur.execute("""
-            SELECT id, status, description, period, evidence_path, evidence_type, severity
+            SELECT id, status, description, period, entry_date, evidence_path, evidence_type, severity,
+                   created_at, updated_at
             FROM manual_entries
             WHERE feature_name = ?
             ORDER BY id
@@ -1533,7 +1687,9 @@ def list_module_tests(
             "status": m["status"],
             "severity": m["severity"],
             "error_message": None,
-            "run_date": f"{m['period']}-01",
+            "run_date": m["entry_date"] or f"{m['period']}-01",
+            "created_at": m["created_at"],
+            "updated_at": m["updated_at"],
             "attachments": [
                 {
                     "name": "Evidence",
@@ -1562,11 +1718,19 @@ def list_module_tests(
 
 @app.get("/api/evidence/{filename}")
 def get_evidence(filename: str, username: str = Depends(get_current_user)):
+    if Path(filename).name != filename or Path(filename).suffix.lower() not in ALLOWED_EVIDENCE_EXT:
+        raise HTTPException(status_code=404, detail="Not found")
+    headers = {"X-Content-Type-Options": "nosniff"}
+    stored = load_evidence(filename)
+    if stored:
+        content_type, data = stored
+        return Response(content=data, media_type=content_type or "application/octet-stream", headers=headers)
+    # Fallback for images still in the old folder
     base = EVIDENCE_DIR.resolve()
     target = (base / filename).resolve()
-    if target.parent != base or target.suffix.lower() not in ALLOWED_EVIDENCE_EXT or not target.is_file():
+    if target.parent != base or not target.is_file():
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(target, headers={"X-Content-Type-Options": "nosniff"})
+    return FileResponse(target, headers=headers)
 
 
 @app.get("/api/module-meta")

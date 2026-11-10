@@ -174,3 +174,11 @@
   background-position: center;
   background-repeat: no-repeat;
 }
+
+.page-header .brand.welcome-brand {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--body-text-muted);
+}

@@ -1,4 +1,5 @@
-export const API_BASE = 'http://localhost:8000';
+// On Vercel set VITE_API_BASE to the backend address. Locally it falls back to :8000.
+export const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:8000').replace(/\/$/, '');
 const TOKEN_KEY = 'qa_dashboard_token';
 const USERNAME_KEY = 'qa_dashboard_username';
 
@@ -25,6 +26,24 @@ export async function login(username, password) {
 
   if (!res.ok) {
     throw new Error(data.detail || 'Login failed');
+  }
+
+  localStorage.setItem(TOKEN_KEY, data.token);
+  localStorage.setItem(USERNAME_KEY, data.username);
+  return data.username;
+}
+
+export async function loginWithGoogle(credential) {
+  const res = await fetch(`${API_BASE}/api/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || 'Google login failed');
   }
 
   localStorage.setItem(TOKEN_KEY, data.token);

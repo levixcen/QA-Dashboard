@@ -1,0 +1,55 @@
+/* Shared Sedayu One blue select styling (must load after module-meta and defects) */
+
+/* Form selects — Sedayu One blue (Feature, Severity, status, folder target, etc.) */
+.controls select,
+.control-group select,
+.page-header select,
+.defects-filters select,
+.module-meta-field select,
+.project-checklist-assignees-edit select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--oxford-blue);
+  background-color: var(--miracle-white);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2304BBE4' d='M1.4 0L6 4.6 10.6 0 12 1.4 6 7.4 0 1.4z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 8px;
+  border: 1.5px solid var(--pacific-blue);
+  border-radius: 10px;
+  padding: 8px 36px 8px 12px;
+  min-width: 120px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.controls select:hover,
+.control-group select:hover,
+.page-header select:hover,
+.defects-filters select:hover,
+.module-meta-field select:hover {
+  background-color: rgba(4, 187, 228, 0.08);
+  border-color: var(--pacific-blue);
+}
+
+.controls select:focus,
+.control-group select:focus,
+.page-header select:focus,
+.defects-filters select:focus,
+.module-meta-field select:focus {
+  outline: none;
+  border-color: var(--pacific-blue);
+  box-shadow: 0 0 0 3px rgba(4, 187, 228, 0.2);
+  background-color: var(--miracle-white);
+}
+
+.controls select:disabled,
+.control-group select:disabled {
+  opacity: 0.55;
+  cursor: default;
+  background-color: #f0f4f8;
+}

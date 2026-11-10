@@ -2,6 +2,11 @@ from datetime import datetime, timezone
 
 from database import get_connection, sync_features_from_results
 
+try:
+    from timeutil import to_jakarta
+except ImportError:
+    to_jakarta = None
+
 SEVERITY_LEVELS = ["critical", "high", "medium", "low", "normal"]
 FAILING = ("failed", "broken")
 OPEN_DEFECT_STATUSES = ("open", "in_progress", "retest", "reopened")
@@ -218,7 +223,11 @@ def get_summary(month=None, include_archived=False):
 
     last_run = None
     if latest:
-        last_run = datetime.fromtimestamp(latest / 1000, tz=timezone.utc).isoformat()
+        if to_jakarta:
+            jt = to_jakarta(latest)
+            last_run = jt.isoformat() if jt else None
+        else:
+            last_run = datetime.fromtimestamp(latest / 1000, tz=timezone.utc).isoformat()
 
     by_module = {}
     failing_refs_by_module = {}
@@ -317,3 +326,57 @@ def get_periods():
         return [r["p"] for r in cur.fetchall()]
     finally:
         conn.close()
+
+
+def project_results(cur, module, target=0):
+    """Result totals for one project, taken from its linked feature.
+
+    Uses the newest result of each test (by name, newest run_date wins), so a
+    rerun replaces the earlier outcome instead of adding to it. Buckets:
+    passed, failed (failed and broken), skipped, other (unknown or anything
+    else). pass_rate is passed over executed, where executed excludes skipped
+    and other, matching the UAT pass rate in the Ways of Working guide
+    (target 95 percent or more). coverage is executed over the planned target.
+    """
+    module = (module or "").strip()
+    empty = {
+        "linked": False, "total": 0, "executed": 0, "passed": 0, "failed": 0,
+        "skipped": 0, "other": 0, "pass_rate": None, "coverage": None,
+        "meets_target": None, "last_run_date": None,
+    }
+    if not module:
+        return empty
+    # The Feature field may hold several features separated by commas, for
+    # example "Queue Service 62, Queue Service 62 Tc11-20".
+    names = [n.strip().lower() for n in module.split(",") if n.strip()]
+    marks = ",".join("?" for _ in names)
+    cur.execute(
+        f"SELECT ref, module, name, status, run_date FROM executions "
+        f"WHERE lower(module) IN ({marks})", names)
+    newest = {}
+    for r in cur.fetchall():
+        ref = r["ref"] or ""
+        key = ref if ref.startswith("manual-") else ((r["module"] or "").lower(), r["name"] or ref)
+        best = newest.get(key)
+        if best is None or (r["run_date"] or "") >= (best["run_date"] or ""):
+            newest[key] = r
+    out = dict(empty, linked=True)
+    for r in newest.values():
+        s = (r["status"] or "").lower()
+        if s == "passed":
+            out["passed"] += 1
+        elif s in FAILING:
+            out["failed"] += 1
+        elif s == "skipped":
+            out["skipped"] += 1
+        else:
+            out["other"] += 1
+    out["total"] = len(newest)
+    out["executed"] = out["passed"] + out["failed"]
+    if out["executed"]:
+        out["pass_rate"] = round(out["passed"] / out["executed"] * 100)
+        out["meets_target"] = out["pass_rate"] >= 95
+    if target and target > 0:
+        out["coverage"] = min(100, round(out["executed"] / target * 100))
+    out["last_run_date"] = max((r["run_date"] for r in newest.values() if r["run_date"]), default=None)
+    return out

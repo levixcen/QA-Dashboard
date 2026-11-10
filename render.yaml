@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: qa-dashboard-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/auth/google/config
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
+      - key: DATABASE_URL
+        sync: false
+      - key: QA_DASHBOARD_SECRET
+        sync: false
+      - key: QA_DASHBOARD_GOOGLE_CLIENT_ID
+        sync: false
+      - key: QA_DASHBOARD_ALLOWED_DOMAINS
+        value: agungsedayu.com,sedayuone.com
+      - key: QA_DASHBOARD_ALLOWED_EMAILS
+        value: darachriscen@gmail.com
+      - key: QA_DASHBOARD_CORS_ORIGINS
+        sync: false

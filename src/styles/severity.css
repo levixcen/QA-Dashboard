@@ -1,0 +1,97 @@
+/* Severity card and badges (shared by Dashboard and Defects) */
+
+/* Defect severity card */
+.severity-card {
+  background: var(--miracle-white);
+  border: 1px solid var(--light-blue-border);
+  border-radius: 20px;
+  box-shadow: var(--card-shadow-light);
+  padding: 20px;
+  flex: 1;
+  min-width: 280px;
+  transition: transform 0.2s ease;
+}
+
+.severity-card:hover {
+  transform: translateY(-3px);
+}
+
+.severity-card h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pacific-blue);
+  margin-bottom: 12px;
+}
+
+.severity-badges {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.severity-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  padding: 10px 14px;
+  min-width: 64px;
+}
+
+.severity-count {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--font-display);
+}
+
+.severity-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 2px;
+}
+
+.severity-critical { background: rgba(198, 40, 40, 0.12); }
+
+.severity-critical .severity-count,
+.severity-critical .severity-label { color: #C5221F; }
+
+.severity-high { background: rgba(217, 119, 6, 0.14); }
+
+.severity-high .severity-count,
+.severity-high .severity-label { color: #D97706; }
+
+.severity-medium { background: rgba(4, 187, 228, 0.12); }
+
+.severity-medium .severity-count,
+.severity-medium .severity-label { color: var(--pacific-blue); }
+
+.severity-low { background: rgba(91, 112, 131, 0.12); }
+
+.severity-low .severity-count,
+.severity-low .severity-label { color: #5B7083; }
+
+/* Result totals on Projects cards and Project pace (reuses the severity badge look) */
+.result-passed { background: rgba(21, 153, 71, 0.12); }
+
+.result-passed .severity-count,
+.result-passed .severity-label { color: #159947; }
+
+.result-failed { background: rgba(198, 40, 40, 0.12); }
+
+.result-failed .severity-count,
+.result-failed .severity-label { color: #C5221F; }
+
+.result-skipped { background: rgba(224, 168, 0, 0.16); }
+
+.result-skipped .severity-count,
+.result-skipped .severity-label { color: #A87A00; }
+
+.result-other { background: rgba(91, 112, 131, 0.12); }
+
+.result-other .severity-count,
+.result-other .severity-label { color: #5B7083; }
+
+.result-badges { margin: 10px 0 12px; }

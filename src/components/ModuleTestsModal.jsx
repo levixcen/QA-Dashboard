@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { authFetch } from '../utils/auth';
 import { usePeriod } from '../context/PeriodContext';
+import { formatDate } from '../utils/formatDate';
 
 const IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|webp)$/i;
 const SEVERITY_OPTIONS = ['critical', 'high', 'medium', 'low'];
@@ -149,7 +150,7 @@ function ModuleTestsModal({ moduleName, onClose }) {
           )}
 
           {!loading && !error && tests.map(t => {
-            const images = t.attachments.filter(a => IMAGE_EXTENSIONS.test(a.url));
+            const images = (t.attachments || []).filter(a => IMAGE_EXTENSIONS.test(a.url));
             const isExpanded = expandedUuid === t.uuid;
             const isFailing = FAILING_STATUSES.includes(t.status);
 
@@ -158,6 +159,11 @@ function ModuleTestsModal({ moduleName, onClose }) {
                 <div className="test-row-thin-line">
                   <span className="test-row-name">{t.name}</span>
                   <span className={`test-row-status test-row-status-${t.status}`}>{t.status}</span>
+                  {t.run_date && (
+                    <span className="test-row-date" title="Run date">
+                      {formatDate(t.run_date)}
+                    </span>
+                  )}
 
                   {images.length > 0 ? (
                     <button

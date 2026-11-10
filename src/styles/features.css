@@ -1,0 +1,49 @@
+
+.feature-severity-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.feature-severity-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--body-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.feature-severity-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.feature-sev-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 8px;
+}
+
+.feature-sev-chip.severity-critical {
+  background: rgba(198, 40, 40, 0.12);
+  color: #C5221F;
+}
+
+.feature-sev-chip.severity-high {
+  background: rgba(217, 119, 6, 0.14);
+  color: #D97706;
+}
+
+.feature-sev-chip.severity-medium {
+  background: rgba(4, 187, 228, 0.12);
+  color: var(--pacific-blue);
+}
+
+.feature-sev-chip.severity-low {
+  background: rgba(91, 112, 131, 0.12);
+  color: #5B7083;
+}

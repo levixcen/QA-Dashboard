@@ -30,7 +30,7 @@ function ProjectsPage({ username }) {
   // Inside the overlay: editing test-case counts
   const [editingTc, setEditingTc] = useState(false);
   // Draft for the "add checklist item" row inside the overlay
-  const [checklistDraft, setChecklistDraft] = useState({ text: '', assignees: '' });
+  const [checklistDraft, setChecklistDraft] = useState({ text: '', assignees: '', due_date: '' });
   // Inline edit of a checklist item's assignees: itemId or null
   const [editingAssigneesId, setEditingAssigneesId] = useState(null);
   const [assigneesDraft, setAssigneesDraft] = useState('');
@@ -78,7 +78,7 @@ function ProjectsPage({ username }) {
   function closeOverlay() {
     setOpenProjectId(null);
     setEditingTc(false);
-    setChecklistDraft({ text: '', assignees: '' });
+    setChecklistDraft({ text: '', assignees: '', due_date: '' });
     setEditingAssigneesId(null);
     setAssigneesDraft('');
     setEditingOwner(false);
@@ -88,7 +88,7 @@ function ProjectsPage({ username }) {
   function openOverlay(projectId) {
     setOpenProjectId(projectId);
     setEditingTc(false);
-    setChecklistDraft({ text: '', assignees: '' });
+    setChecklistDraft({ text: '', assignees: '', due_date: '' });
     setEditingAssigneesId(null);
     setAssigneesDraft('');
     setEditingOwner(false);
@@ -219,12 +219,13 @@ function ProjectsPage({ username }) {
     const text = (checklistDraft.text || '').trim();
     if (!text) return;
     const assignees = (checklistDraft.assignees || '').trim() || null;
+    const due_date = (checklistDraft.due_date || '').trim() || null;
 
     try {
       const res = await authFetch(`/api/projects/${projectId}/checklist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, assignees }),
+        body: JSON.stringify({ text, assignees, due_date }),
       });
       if (!res.ok) throw new Error('Failed to add checklist item');
 
@@ -236,7 +237,7 @@ function ProjectsPage({ username }) {
             : p
         )
       );
-      setChecklistDraft({ text: '', assignees: '' });
+      setChecklistDraft({ text: '', assignees: '', due_date: '' });
     } catch (err) {
       // leave draft so the user can retry
     }
@@ -471,6 +472,28 @@ function ProjectsPage({ username }) {
                   />
                 </div>
 
+                {(() => {
+                  const linked = p.results && p.results.linked && p.results.total > 0;
+                  const r = linked
+                    ? p.results
+                    : { passed: p.tc_done || 0, failed: p.tc_failed || 0, skipped: 0, other: 0 };
+                  return (
+                  <div className="severity-badges result-badges">
+                    {[
+                      ['passed', 'Passed', r.passed],
+                      ['failed', 'Failed', r.failed],
+                      ['skipped', 'Skipped', r.skipped],
+                      ...(r.other ? [['other', 'Other', r.other]] : []),
+                    ].map(([key, label, value]) => (
+                      <div key={key} className={`severity-badge result-${key}`}>
+                        <span className="severity-count">{value}</span>
+                        <span className="severity-label">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  );
+                })()}
+
                 <div className="status-row">
                   <span>{p.status}</span>
                   <span title="Project assignees">{p.owner || 'Unassigned'}</span>
@@ -483,13 +506,23 @@ function ProjectsPage({ username }) {
                       {p.module || '—'}
                     </span>
                   </div>
-                  <div className="detail-row">
-                    <span>TCs</span>
-                    <span style={{ color: '#5a7a9a', fontWeight: 400 }}>
-                      {p.tc_done}/{p.tc_total}
-                      {p.tc_failed ? ` · ${p.tc_failed} failed` : ''}
-                    </span>
-                  </div>
+                  {p.results && p.results.linked && p.results.total > 0 ? (
+                    <div className="detail-row">
+                      <span>Pass rate</span>
+                      <span style={{ color: p.results.meets_target ? '#1a7f4b' : '#b42318', fontWeight: 600 }}>
+                        {p.results.pass_rate === null ? '—' : `${p.results.pass_rate}%`}
+                        {p.results.coverage !== null ? ` · ${p.results.coverage}% of ${p.tc_total} planned` : ''}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="detail-row">
+                      <span>TCs</span>
+                      <span style={{ color: '#5a7a9a', fontWeight: 400 }}>
+                        {p.tc_done}/{p.tc_total}
+                        {p.tc_failed ? ` · ${p.tc_failed} failed` : ''}
+                      </span>
+                    </div>
+                  )}
                   <div className="detail-row">
                     <span>Checklist</span>
                     <span style={{ color: '#5a7a9a', fontWeight: 400 }}>
@@ -661,13 +694,23 @@ function ProjectsPage({ username }) {
                   </span>
                 </div>
                 <div className="detail-row">
+                  <span>Added</span>
+                  <span>
+                    {openProject.created_at
+                      ? formatDate(openProject.created_at)
+                      : '—'}
+                  </span>
+                </div>
+                <div className="detail-row">
                   <span>Progress</span>
                   <span>{openProject.pct}%</span>
                 </div>
                 <div className="detail-row">
                   <span>Test cases</span>
                   <span>
-                    {openProject.tc_done} passed · {openProject.tc_failed} failed ·{' '}
+                    {openProject.results && openProject.results.total > 0
+                      ? `${openProject.results.passed} passed · ${openProject.results.failed} failed · ${openProject.results.skipped} skipped${openProject.results.other ? ` · ${openProject.results.other} other` : ''} · `
+                      : `${openProject.tc_done} passed · ${openProject.tc_failed} failed · `}
                     {openProject.tc_total} target
                     <button
                       type="button"
@@ -728,6 +771,14 @@ function ProjectsPage({ username }) {
                         >
                           {item.text}
                         </span>
+                        {item.due_date && (
+                          <span
+                            className="project-checklist-due"
+                            title="Due date"
+                          >
+                            {formatDate(item.due_date)}
+                          </span>
+                        )}
                       </label>
                       {isEditingThis ? (
                         <span className="project-checklist-assignees-edit">
@@ -818,6 +869,15 @@ function ProjectsPage({ username }) {
                         if (e.key === 'Enter') handleAddChecklistItem(openProject.id);
                       }}
                       title="Comma-separated names"
+                    />
+                    <input
+                      type="date"
+                      value={checklistDraft.due_date}
+                      onChange={e =>
+                        setChecklistDraft(d => ({ ...d, due_date: e.target.value }))
+                      }
+                      title="Due date (optional)"
+                      style={{ maxWidth: 150 }}
                     />
                     <button
                       type="button"

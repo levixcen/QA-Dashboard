@@ -274,6 +274,31 @@ function Chart({ project }) {
   );
 }
 
+function ResultTotals({ project }) {
+  const results = project.results;
+  const linked = results && results.linked && results.total > 0;
+  const r = linked
+    ? results
+    : { passed: project.tc_done || 0, failed: project.tc_failed || 0, skipped: 0, other: 0, pass_rate: null, meets_target: false };
+  const tiles = [
+    ['passed', 'Passed', r.passed],
+    ['failed', 'Failed', r.failed],
+    ['skipped', 'Skipped', r.skipped],
+    ...(r.other ? [['other', 'Other', r.other]] : []),
+    [r.meets_target ? 'passed' : 'failed', 'Pass rate', r.pass_rate === null ? '-' : `${r.pass_rate}%`],
+  ];
+  return (
+    <div className="severity-badges result-badges">
+      {tiles.map(([key, label, value]) => (
+        <div key={label} className={`severity-badge result-${key}`}>
+          <span className="severity-count">{value}</span>
+          <span className="severity-label">{label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function statusText(project) {
   const flag = project.status_flag;
   if (flag === 'done') return { text: 'Done', color: '#159947' };
@@ -307,8 +332,29 @@ function ProjectPaceChart({ projects }) {
     .sort((a, b) => (b.gap ?? -999) - (a.gap ?? -999));
   const untracked = all.filter(p => !p.created_at);
 
+    const [statusFilter, setStatusFilter] = useState('all');
+  const [ownerFilter, setOwnerFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
-  const selected = tracked.find(p => p.id === selectedId) || tracked[0] || null;
+
+  const owners = [
+    ...new Set(
+      tracked.flatMap(p => (p.owner || '').split(',').map(s => s.trim()).filter(Boolean))
+    ),
+  ].sort();
+
+  const NEEDS_ATTENTION = ['behind', 'overdue', 'at_risk'];
+
+  const filtered = tracked.filter(p => {
+    if (statusFilter === 'attention' && !NEEDS_ATTENTION.includes(p.status_flag)) return false;
+    if (statusFilter === 'on_track' && !['on_track', 'done'].includes(p.status_flag)) return false;
+    if (ownerFilter !== 'all') {
+      const names = (p.owner || '').split(',').map(s => s.trim());
+      if (!names.includes(ownerFilter)) return false;
+    }
+    return true;
+  });
+
+  const selected = filtered.find(p => p.id === selectedId) || filtered[0] || null;
 
   const status = selected ? statusText(selected) : null;
   let daysNote = '';
@@ -325,18 +371,75 @@ function ProjectPaceChart({ projects }) {
   }
 
   return (
-    <div className="insight-card">
+        <div className="insight-card">
       <h3>Project pace</h3>
+
+      {tracked.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, margin: '12px 0 4px', alignItems: 'center' }}>
+          <div style={{ display: 'inline-flex', border: `1.5px solid var(--light-blue-border, #c5d4e8)`, borderRadius: 999, padding: 2 }}>
+            {[
+              ['all', 'All'],
+              ['attention', 'Needs attention'],
+              ['on_track', 'On track'],
+            ].map(([val, label]) => {
+              const active = statusFilter === val;
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setStatusFilter(val)}
+                  style={{
+                    cursor: 'pointer',
+                    font: 'inherit',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: '5px 12px',
+                    borderRadius: 999,
+                    border: 'none',
+                    color: active ? '#fff' : NAVY,
+                    background: active ? NAVY : 'transparent',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {owners.length > 1 && (
+            <select
+              value={ownerFilter}
+              onChange={e => setOwnerFilter(e.target.value)}
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: NAVY,
+                border: `1.5px solid var(--light-blue-border, #c5d4e8)`,
+                borderRadius: 999,
+                padding: '5px 12px',
+                background: '#fff',
+              }}
+            >
+              <option value="all">Everyone</option>
+              {owners.map(o => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
 
       {!selected ? (
         <p className="insight-note" style={{ marginTop: 8 }}>
-          No active projects to chart yet.
+          {tracked.length === 0
+            ? 'No active projects to chart yet.'
+            : 'No projects match the current filters.'}
         </p>
       ) : (
         <>
-          {tracked.length > 1 && (
+          {filtered.length > 1 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '12px 0 2px' }}>
-              {tracked.map(p => {
+              {filtered.map(p => {
                 const active = p.id === selected.id;
                 const isBehind =
                   p.status_flag === 'behind' ||
@@ -394,6 +497,7 @@ function ProjectPaceChart({ projects }) {
             </div>
           </div>
 
+          <ResultTotals project={selected} />
           <Chart project={selected} />
         </>
       )}

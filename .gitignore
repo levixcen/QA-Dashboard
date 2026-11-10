@@ -26,7 +26,16 @@ dist-ssr
 # Backend and QA data
 qa_dashboard.db
 evidence/
-allure-results/
-public/dashboard_data.json.venv/
+allure-results*/
+public/dashboard_data.json
+.venv/
 backend/.env
 backend/.env
+.neon
+
+.env
+qa_dashboard.db.*
+backend/evidence/
+__pycache__/
+*.sqlite.py
+*.grok.py

@@ -2,7 +2,15 @@
 @import './styles/layout.css';
 @import './styles/sidebar.css';
 @import './styles/controls.css';
-@import './styles/cards.css';
+@import './styles/dashboard.css';
+@import './styles/severity.css';
+@import './styles/modules.css';
+@import './styles/modal.css';
+@import './styles/module-meta.css';
+@import './styles/projects.css';
+@import './styles/defects.css';
+@import './styles/features.css';
+@import './styles/selects.css';
 @import './styles/boards.css';
 @import './styles/login.css';
 @import './styles/responsive.css';

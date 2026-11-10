@@ -73,3 +73,64 @@
   font-size: 12px;
   font-weight: 600;
 }
+
+/* Profile and sign out screen, plus the login page logo */
+
+/* Profile / sign out screen text. Container sizing lives in layout.css. */
+.profile-logout-screen .logout-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  gap: 8px;
+  z-index: 2;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+}
+
+.profile-logout-screen .logout-label {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.profile-logout-screen .logout-username {
+  margin: 0 0 20px;
+  font-size: 40px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+}
+
+.profile-logout-screen .login-logo {
+  position: absolute;
+  right: 40px;
+  bottom: 36px;
+  width: min(280px, 28vw);
+  height: auto;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  z-index: 2;
+}
+
+/* Login page logo */
+.login-screen > .login-page-logo {
+  position: absolute;
+  right: 32px;
+  bottom: 28px;
+  width: 180px;
+  max-width: 22vw;
+  height: auto;
+  object-fit: contain;
+  pointer-events: none;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  z-index: 1;
+}

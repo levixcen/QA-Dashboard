@@ -1,0 +1,159 @@
+/* Module cards, progress bars, status icons, shared .archive button, placeholders */
+
+/* Module cards */
+.modules {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.module-card {
+  background: var(--miracle-white);
+  border: 1px solid var(--light-blue-border);
+  border-radius: 20px;
+  box-shadow: var(--card-shadow-light);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.2s ease;
+}
+
+.module-card:hover {
+  transform: translateY(-3px);
+}
+
+.module-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.module-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--oxford-blue);
+}
+
+.module-pct {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pacific-blue);
+}
+
+.progress {
+  height: 8px;
+  background: #E2ECF5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.progress-bar.green { background: #1B7A32; }
+
+.progress-bar.orange { background: #D97706; }
+
+.progress-bar.red { background: #C5221F; }
+
+.progress-bar.gray { background: #5B7083; }
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--body-text-muted);
+}
+
+.status-row .failing {
+  color: #C5221F;
+  font-weight: 700;
+}
+
+.details {
+  font-size: 12px;
+  color: var(--body-text-muted);
+  border-top: 1px solid var(--light-blue-border);
+  padding-top: 10px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  gap: 8px;
+}
+
+.detail-row span:last-child {
+  color: #C5221F;
+  font-weight: 700;
+  text-align: right;
+}
+
+.archive {
+  align-self: flex-end;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--body-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: color 0.2s ease;
+}
+
+.archive:hover {
+  color: var(--pacific-blue);
+}
+
+/* Status icons */
+.icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.icon.green { background: #1B7A32; }
+
+.icon.orange { background: #D97706; }
+
+.icon.red { background: #C5221F; }
+
+.icon.gray { background: #5B7083; }
+
+/* Loading, error and empty state placeholders */
+
+/* Placeholders */
+.placeholder {
+  background: var(--miracle-white);
+  border: 1px solid var(--light-blue-border);
+  border-radius: 20px;
+  box-shadow: var(--card-shadow-light);
+  padding: 48px;
+  text-align: center;
+  color: var(--body-text-muted);
+  transition: transform 0.2s ease;
+}
+
+.placeholder:hover {
+  transform: translateY(-3px);
+}
+
+.placeholder p {
+  margin-bottom: 8px;
+}

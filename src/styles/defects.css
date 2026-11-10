@@ -1,0 +1,377 @@
+/* Defects page: summary, filters, table, folders, cards */
+
+.defects-summary-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.defects-summary-row .severity-card {
+  flex: 1;
+  min-width: 200px;
+}
+
+.defects-filters {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.defects-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--body-text-muted);
+}
+
+.defects-filters select {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--light-blue-border);
+  border-radius: 8px;
+  background: var(--miracle-white);
+  color: var(--body-text);
+  min-width: 140px;
+}
+
+.defects-table-wrap {
+  overflow-x: auto;
+  background: var(--miracle-white);
+  border: 1px solid var(--light-blue-border);
+  border-radius: 20px;
+  box-shadow: var(--card-shadow-light);
+}
+
+.defects-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.defects-table th {
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--pacific-blue);
+  border-bottom: 1px solid var(--light-blue-border);
+  white-space: nowrap;
+}
+
+.defects-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--light-blue-border);
+  color: var(--body-text);
+  vertical-align: top;
+}
+
+.defects-table tr:last-child td {
+  border-bottom: none;
+}
+
+.defect-row-closed {
+  opacity: 0.55;
+}
+
+.defect-id {
+  font-weight: 700;
+  color: var(--oxford-blue);
+  white-space: nowrap;
+}
+
+.defect-desc {
+  max-width: 280px;
+}
+
+.defect-sev,
+.defect-status {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.defect-sev.severity-critical { background: rgba(198, 40, 40, 0.12); color: #C5221F; }
+
+.defect-sev.severity-high { background: rgba(217, 119, 6, 0.14); color: #D97706; }
+
+.defect-sev.severity-medium { background: rgba(4, 187, 228, 0.12); color: var(--pacific-blue); }
+
+.defect-sev.severity-low { background: rgba(91, 112, 131, 0.12); color: #5B7083; }
+
+.defect-status.status-open { background: rgba(198, 40, 40, 0.12); color: #C5221F; }
+
+.defect-status.status-in_progress { background: rgba(4, 187, 228, 0.12); color: var(--pacific-blue); }
+
+.defect-status.status-retest { background: rgba(255, 193, 7, 0.18); color: #D97706; }
+
+.defect-status.status-reopened { background: rgba(198, 40, 40, 0.12); color: #C5221F; }
+
+.defect-status.status-closed { background: rgba(46, 125, 50, 0.12); color: #1B7A32; }
+
+.defect-actions {
+  white-space: nowrap;
+}
+
+.defect-actions button {
+  align-self: auto;
+  margin-top: 0;
+}
+
+.defect-actions button + button {
+  margin-left: 10px;
+}
+
+/* Defects page — sections & folder clusters */
+.defects-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.defects-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pacific-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.defects-section-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--body-text-muted);
+  text-transform: none;
+  letter-spacing: normal;
+  background: rgba(4, 187, 228, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.defects-section-empty {
+  font-size: 13px;
+  color: var(--body-text-muted);
+  margin: 0;
+  padding: 12px 0;
+}
+
+.defects-folder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.defect-folder {
+  background: var(--miracle-white);
+  border: 1px solid var(--light-blue-border);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow-light);
+  overflow: hidden;
+}
+
+.defect-folder.expanded {
+  border-color: var(--pacific-blue);
+}
+
+.defect-folder-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s ease;
+  flex-wrap: nowrap;
+  min-height: 48px;
+}
+
+.defect-folder-header:hover {
+  background: rgba(4, 187, 228, 0.06);
+}
+
+.defect-folder-header input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--pacific-blue);
+  cursor: pointer;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.defect-folder-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--pacific-blue);
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.defect-folder-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--pacific-blue);
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.defect-folder-icon-svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.defect-folder-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--oxford-blue);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+  align-self: center;
+}
+
+.defect-folder-meta,
+.defect-folder-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--body-text-muted);
+  white-space: nowrap;
+  line-height: 1.3;
+  align-self: center;
+}
+
+.defect-folder-meta-sep {
+  color: var(--light-blue-border);
+  font-weight: 400;
+}
+
+/* Ungroup — isolated from .archive; font matches .defect-folder-meta */
+.defect-folder-header .defect-folder-ungroup {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 5px 12px;
+  height: 28px;
+  flex-shrink: 0;
+  align-self: center;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: normal;
+  color: var(--body-text-muted);
+  background: var(--miracle-white);
+  border: 1px solid var(--light-blue-border);
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.defect-folder-header .defect-folder-ungroup:hover {
+  background: rgba(4, 187, 228, 0.08);
+  border-color: var(--pacific-blue);
+  color: var(--pacific-blue);
+}
+
+.defect-folder-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--light-blue-border);
+  padding-top: 16px;
+}
+
+.defect-card {
+  border-left: 4px solid var(--light-blue-border);
+}
+
+.defect-card.severity-border-critical { border-left-color: #C5221F; }
+
+.defect-card.severity-border-high { border-left-color: #D97706; }
+
+.defect-card.severity-border-medium { border-left-color: #04BBE4; }
+
+.defect-card.severity-border-low { border-left-color: #5B7083; }
+
+.defect-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.defect-select input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--pacific-blue);
+  cursor: pointer;
+}
+
+.defect-code {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--oxford-blue);
+}
+
+.severity-badge-inline {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 10px;
+  border-radius: 12px;
+}
+
+.severity-badge-inline.severity-critical { background: rgba(198, 40, 40, 0.12); color: #C5221F; }
+
+.severity-badge-inline.severity-high { background: rgba(217, 119, 6, 0.14); color: #D97706; }
+
+.severity-badge-inline.severity-medium { background: rgba(4, 187, 228, 0.12); color: var(--pacific-blue); }
+
+.severity-badge-inline.severity-low { background: rgba(91, 112, 131, 0.12); color: #5B7083; }
+
+/* Defect card: pencil top-right like Features */
+.defect-card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

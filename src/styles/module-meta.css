@@ -1,0 +1,109 @@
+/* Inline edit form shared by modules, raise defect form and defect errors */
+
+.module-meta-edit-trigger {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 19px;
+  transform: scaleX(-1);
+  color: var(--body-text-muted);
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.module-meta-edit-trigger:hover {
+  color: var(--pacific-blue);
+  background: rgba(4, 187, 228, 0.1);
+}
+
+.module-meta-display {
+  font-size: 12px;
+  color: var(--body-text-muted);
+  margin-top: 4px;
+}
+
+.module-meta-display.mitigation {
+  color: var(--body-text);
+  font-style: italic;
+}
+
+.module-meta-form {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--light-blue-bg);
+  border: 1px solid var(--light-blue-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.module-meta-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--body-text-muted);
+}
+
+.module-meta-field input,
+.module-meta-field select,
+.module-meta-field textarea {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--body-text);
+  padding: 6px 10px;
+  border: 1px solid var(--light-blue-border);
+  border-radius: 8px;
+  background: var(--miracle-white);
+  resize: vertical;
+}
+
+.module-meta-field input:focus,
+.module-meta-field select:focus,
+.module-meta-field textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.module-meta-error {
+  font-size: 12px;
+  color: #C5221F;
+}
+
+.module-meta-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.module-meta-save,
+.module-meta-cancel {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.module-meta-save {
+  background: var(--pacific-blue);
+  color: var(--miracle-white);
+}
+
+.module-meta-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.module-meta-cancel {
+  background: none;
+  border: 1px solid var(--light-blue-border);
+  color: var(--body-text-muted);
+}
