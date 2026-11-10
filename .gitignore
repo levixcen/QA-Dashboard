@@ -39,3 +39,7 @@ backend/evidence/
 __pycache__/
 *.sqlite.py
 *.grok.py
+
+qa_dashboard.db-*
+*.db-shm
+*.db-wal
